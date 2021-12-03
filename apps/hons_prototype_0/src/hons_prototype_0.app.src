@@ -1,0 +1,17 @@
+{application, hons_prototype_0,
+ [{description, "An OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {hons_prototype_0_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    cowboy,
+    jiffy
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

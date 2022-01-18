@@ -70,6 +70,10 @@ handle(<<"POST">>, login, Req1) ->
 	  <<"content-type">> => <<"text/json">>
 	 }, ReplyJSON, Req);
 
+handle(<<"GET">>, logging, Req) ->
+	io:format("user connected to ~s~n", [cowboy_req:path()]),
+	cowboy_req:reply(200, Req);
+
 handle(_, _, Req) ->
 	cowboy_req:reply(200, #{}, "not implemented",  Req).
 

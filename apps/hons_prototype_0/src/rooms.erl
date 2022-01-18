@@ -14,6 +14,12 @@ handle(<<"GET">>, sync, Req) ->
     }, "sync", Req);
 
 handle(<<"GET">>, messages, Req) ->
+	% access bindings: roomId
+	io:format("[DEBUG] roomId: ~s~n", [cowboy_req:binding(roomId, Req)]),
+
+	% access query string: access token
+	ParsedQs = cowboy_req:parse_qs(Req),
+
 	cowboy_req:reply(200, #{
 	  <<"content-type">> => <<"application/json">>
 	 }, "accessing messages" , Req).

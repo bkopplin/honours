@@ -21,6 +21,7 @@ start(_StartType, _StartArgs) ->
 			%% room participation
 			{"/sync", rooms, [sync]},
 			{"/rooms/:roomId/messages", rooms, [messages]},
+			{"/rooms/:roomId/event/:eventId", rooms, [event]},
 			{"/_", matrix_auth, [logging]}
 	      	]}
 	]),

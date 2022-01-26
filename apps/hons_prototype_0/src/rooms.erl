@@ -17,17 +17,17 @@ handle(<<"GET">>, sync, Req) ->
 handle(<<"GET">>, event, Req) ->
 	RoomId = cowboy_req:binding(roomId, Req),
 	EventId = cowboy_req:binding(eventId, Req),
-	Event = db:get_event(RoomId, EventId),
-	reply(200, Event, Req);
+
+	case db:get_event(RoomId, EventId) of
+		{ok, Event} -> reply(200, Event, Req);
+		{error, not_found} -> reply(404, #{
+					<<"errcode">> => <<"M_NOT_FOUND">>,
+					<<"error">> => <<"Could not find event {EVENTID}">>
+				       }, Req)
+	end;
 
 
 handle(<<"GET">>, messages, Req) ->
-	% access bindings: roomId
-	io:format("[DEBUG] roomId: ~s~n", [cowboy_req:binding(roomId, Req)]),
-
-	% access query string: access token
-	ParsedQs = cowboy_req:parse_qs(Req),
-
 	cowboy_req:reply(200, #{
 	  <<"content-type">> => <<"application/json">>
 	 }, "accessing messages" , Req).

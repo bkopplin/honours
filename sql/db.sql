@@ -1,5 +1,5 @@
-DROP TABLE IF EXISTS RoomEvent;
-CREATE TABLE IF NOT EXISTS RoomEvent (
+DROP TABLE IF EXISTS RoomEvents;
+CREATE TABLE IF NOT EXISTS RoomEvents (
 	content jsonb NOT NULL,
 	event_id text PRIMARY KEY,
 	origin_server_ts BIGINT NOT NULL ,
@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS RoomEvent (
 	unsigned jsonb
 );
 
-INSERT INTO RoomEvent (content, event_id, origin_server_ts, room_id, sender, type, unsigned) VALUES
+INSERT INTO RoomEvents (content, event_id, origin_server_ts, room_id, sender, type, unsigned) VALUES
 ('{"body": "hello world", "msgtype": "m.text"}',
-  'ffaa', 1638547064954, '!acex:local.org', '@alice:local.org', 'm.room.message', '{"age": 4046466692}'),
+  'eid1', 1638547064954, '!r1:localhost', '@alice:localhost', 'm.room.message', '{"age": 4046466692}'),
 ('{"body": "second message", "msgtype": "m.text"}',
-  'fadxa', 1638547064954, '!acex:local.org', '@bob:local.org', 'm.room.message', '{"age": 4046466582}');
+  'eid2', 1638547064954, '!r1:localhost', '@bob:localhost', 'm.room.message', '{"age": 4046466582}');
 

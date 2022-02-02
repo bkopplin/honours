@@ -1,3 +1,10 @@
+-- to keep things simple a sequence generator is used to generate the next depth value
+-- when using federation it is expected that the depth value creation will need to be 
+-- handled by application code
+
+DROP SEQUENCE IF EXISTS depth_seq;
+CREATE SEQUENCE IF NOT EXISTS depth_seq INCREMENT BY 10; 
+
 DROP TABLE IF EXISTS Events;
 CREATE TABLE IF NOT EXISTS Events (
 	content jsonb NOT NULL,
@@ -8,7 +15,8 @@ CREATE TABLE IF NOT EXISTS Events (
 	type text NOT NULL,
 	unsigned jsonb,
 	state_key text DEFAULT NULL,
-	prev_content jsonb DEFAULT NULL
+	prev_content jsonb DEFAULT NULL, -- potentially being used in unsigned field
+	depth INT NOT NULL DEFAULT nextval('depth_seq') 
 );
 
 INSERT INTO Events (content, event_id, origin_server_ts, room_id, sender, type, unsigned) VALUES

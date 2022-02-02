@@ -19,7 +19,7 @@ connect() ->
 %% Gets a single event with identification EventId in room with identification RoomId.
 get_event(RoomId, EventId) ->
 	C = connect(),
-	case epgsql:equery(C, "SELECT * FROM RoomEvents WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
+	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
 		{ok, Cols, [Row|_]} -> 
 			ok = epgsql:close(C),
 			RowList = erlang:tuple_to_list(Row),

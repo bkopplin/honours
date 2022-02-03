@@ -1,6 +1,6 @@
 -module(db).
 
--export([get_event/2]).
+-export([get_event/2, get_messages/2]).
 -export([connect/0]).
 
 -include_lib("epgsql/include/epgsql.hrl").
@@ -23,7 +23,7 @@ get_event(RoomId, EventId) ->
 		{ok, Cols, [Row|_]} -> 
 			ok = epgsql:close(C),
 			RowList = erlang:tuple_to_list(Row),
-			{ok, maps:from_list(convert_to_keypair(Cols, RowList))};
+			{ok,match_col_row(Cols, RowList)};
 		{ok, _, []} ->
 			ok = epgsql:close(C),
 			{error, not_found};
@@ -32,15 +32,36 @@ get_event(RoomId, EventId) ->
 			{error, Reason}
 	end.
 
+%% Returns a list of messages in room RoomId with filter parameters Qs
+get_messages(RoomId, Qs) ->
+	C = connect(),
+	Order = case maps:get(dir, Qs) of <<"f">> -> "ASC"; _ -> "DESC" end,
+	Limit = maps:get(limit, Qs),
+	case epgsql:equery(C, "SELECT content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key FROM Events WHERE room_id = $1 ORDER BY depth DESC LIMIT $2", [RoomId, Limit]) of
+		{ok, Cols, Rows} ->
+			ok = epgsql:close(C),
+			{ok,table_to_list(Cols, Rows)};
+		{ok, _, []} ->
+			ok = epgsql:close(C),
+			{error, not_found};
+		{error, Reason} ->
+			ok = epgsql:close(C),
+			{error, Reason}
+	end.
+
+table_to_list(Cols, [Row|Rest]) ->
+	[maps:from_list(match_col_row(Cols, erlang:tuple_to_list(Row)))|table_to_list(Cols, Rest)];
+table_to_list(Cols, []) -> [].
+
 %% Converts a list of column tuples and a list of row contents to a key-value map that maps a column name to a row cell
-convert_to_keypair([Col|RemCols], [RowElement|RemRow]) ->
+match_col_row([Col|RemCols], [RowElement|RemRow]) ->
 	ColTitle = Col#column.name,
 	case Col#column.type of
 		jsonb ->
-			[{ColTitle, jiffy:decode(RowElement, [return_maps])}|convert_to_keypair(RemCols, RemRow)];
+			[{ColTitle, jiffy:decode(RowElement, [return_maps])}|match_col_row(RemCols, RemRow)];
 		_ ->
-			[{ColTitle, RowElement}|convert_to_keypair(RemCols, RemRow)]
+			[{ColTitle, RowElement}|match_col_row(RemCols, RemRow)]
 	end;
-convert_to_keypair([], []) ->
+match_col_row([], []) ->
 	[].
 

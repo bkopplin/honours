@@ -28,10 +28,13 @@ handle(<<"GET">>, event, Req) ->
 
 
 handle(<<"GET">>, messages, Req) ->
-	cowboy_req:reply(200, #{
-	  <<"content-type">> => <<"application/json">>
-	 }, "accessing messages" , Req).
-
+	RoomId = cowboy_req:binding(roomId, Req),
+	Qs = cowboy_req:match_qs([{limit, int, 10}, {dir, [], <<"b">>}, {from, [], start}], Req),
+	io:format("QS: ~p~n", [Qs]),
+	case db:get_messages(RoomId, Qs) of
+		{ok, Event} -> reply(200, Event, Req);
+		{error, _} -> reply(404, #{<<"error">> => <<"NOT IMPLEMENTED">>}, Req)
+	end.
 
 %% Sends a reply back to the client.
 %% Takes in a Map as Data, so that an arbitrary format can be returned, e.g. plain html, json, xml. Currently, only json is supported

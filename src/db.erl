@@ -74,13 +74,17 @@ match_col_row([], []) ->
 %%% -----
 %%% Tests
 %%% -----
-match_col_row_test() ->
-	?assertEqual([], match_col_row([],[])).
+match_col_row_empty_values_test_() ->
+	[?_assertEqual([], match_col_row([],[])),
+	 ?_assertError(function_clause, match_col_row([],[foo])),
+	 ?_assertError(function_clause, match_col_row([generate_column(<<"foo">>, text)], []))
+	].
+		      
 
 match_col_row_single_column_test() ->
 	?assertEqual([{<<"event_id">>, <<"123">>}], match_col_row([generate_column(<<"event_id">>, text)], [<<"123">>]) ).
 
-match_col_row_two_columns_test() ->
+match_col_row_multiple_columns_test() ->
 	?assertEqual(
 	   [{<<"content">>, #{<<"body">> => <<"hello world">>, <<"msgtype">> => <<"m.text">>}},
 	    {<<"event_id">>, <<"123">>},

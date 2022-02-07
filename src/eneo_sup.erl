@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
-%% @doc hons_prototype_0 top level supervisor.
+%% @doc honours top level supervisor.
 %% @end
 %%%-------------------------------------------------------------------
 
--module(hons_prototype_0_sup).
+-module(eneo_sup).
 
 -behaviour(supervisor).
 

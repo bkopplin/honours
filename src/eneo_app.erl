@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
-%% @doc hons_prototype_0 public API
+%% @doc honours public API
 %% @end
 %%%-------------------------------------------------------------------
 
--module(hons_prototype_0_app).
+-module(eneo_app).
 
 -behaviour(application).
 
@@ -30,7 +30,7 @@ start(_StartType, _StartArgs) ->
 					   ], #{
 					       env => #{dispatch => Dispatch}
 					      }),
-    hons_prototype_0_sup:start_link().
+    eneo_sup:start_link().
 
 stop(_State) ->
     ok.

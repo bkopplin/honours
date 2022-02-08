@@ -9,17 +9,20 @@
 %% Connects to the local database
 %% Connection information is hardcoded for the time being
 connect() ->
-	{ok, C} = epgsql:connect(#{
-	    host => "localhost",
-	    username => "bjarne",
-	    password => "password",
-	    database => "bjarne",
+	connect("localhost", "bjarne", "password", "bjarne").
+
+connect(Host, Username, Password, Database) ->
+	epgsql:connect(#{
+	    host => Host,
+	    username => Username,
+	    password => Password,
+	    database => Database,
 	    timeout => 4000
-	}), C.
+	}).
 
 %% Gets a single event with identification EventId in room with identification RoomId.
 get_event(RoomId, EventId) ->
-	C = connect(),
+	{ok, C} = connect(),
 	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
 		{ok, Cols, [Row|_]} -> 
 			ok = epgsql:close(C),
@@ -35,7 +38,7 @@ get_event(RoomId, EventId) ->
 
 %% Returns a list of messages in room RoomId with filter parameters Qs
 get_messages(RoomId, Qs) ->
-	C = connect(),
+	{ok, C} = connect(),
 	Limit = maps:get(limit, Qs),
 	case epgsql:equery(C, "SELECT content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key FROM Events WHERE room_id = $1 ORDER BY depth DESC LIMIT $2", [RoomId, Limit]) of
 		{ok, _Cols, []} ->
@@ -58,12 +61,14 @@ table_to_list(_Cols, []) -> [].
 %% Note that both the column and row have to be of type list.
 %%
 match_col_row([Col|RemCols], [RowElement|RemRow]) ->
+	r3:break(),
 	ColTitle = Col#column.name,
 	case Col#column.type of
+		jsonb when is_atom(RowElement) ->
+			[{ColTitle, jiffy:decode(erlang:atom_to_binary(RowElement), [return_maps])}|match_col_row(RemCols, RemRow)];
 		jsonb ->
 			[{ColTitle, jiffy:decode(RowElement, [return_maps])}|match_col_row(RemCols, RemRow)];
-		int8 ->
-			[{ColTitle, erlang:binary_to_integer(RowElement)}|match_col_row(RemCols, RemRow)];
+
 		_ ->
 			[{ColTitle, RowElement}|match_col_row(RemCols, RemRow)]
 	end;
@@ -95,9 +100,17 @@ match_col_row_multiple_columns_test() ->
 	      generate_column(<<"origin_server_ts">>, int8)
 	     ], 
 	     [
-	 	<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,<<"1638547064954">>
+	 	<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954
 	     ])).
 
+world_test_() ->
+	{spawn,
+	  {setup,
+	   fun () ->  {ok, C} = connect("localhost", "bjarne", "password", "bjarne"), C end,
+	   fun (C) -> epgsql:close(C) end,
+	   ?_assertMatch(foo, three)
+	  }
+	}.
 
 %%% -------------------------
 %%% Internal Helper Functions

@@ -61,7 +61,6 @@ table_to_list(_Cols, []) -> [].
 %% Note that both the column and row have to be of type list.
 %%
 match_col_row([Col|RemCols], [RowElement|RemRow]) ->
-	r3:break(),
 	ColTitle = Col#column.name,
 	case Col#column.type of
 		jsonb when is_atom(RowElement) ->
@@ -103,14 +102,14 @@ match_col_row_multiple_columns_test() ->
 	 	<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954
 	     ])).
 
-world_test_() ->
-	{spawn,
-	  {setup,
+db_test_() ->
+	  {setup,spawn,
 	   fun () ->  {ok, C} = connect("localhost", "bjarne", "password", "bjarne"), C end,
 	   fun (C) -> epgsql:close(C) end,
-	   ?_assertMatch(foo, three)
-	  }
-	}.
+	   fun (C) -> [
+		     	?_assertMatch({ok,_, [{<<"eid4">>}]} , epgsql:equery(C, "select event_id from Events WHERE event_id = 'eid4';")) 
+		      ] end
+	  }.
 
 %%% -------------------------
 %%% Internal Helper Functions

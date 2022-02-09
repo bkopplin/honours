@@ -1,3 +1,8 @@
+%% @doc The module provides an API for database queries.
+%% For the time being, this module has no support for concurrency.
+%% At a later stage, it is expected to make use of OTP patterns.
+%% @end
+
 -module(db).
 
 -export([get_event/2, get_messages/2]).
@@ -6,10 +11,27 @@
 -include_lib("epgsql/include/epgsql.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
-%% Connects to the local database
-%% Connection information is hardcoded for the time being
+-type qs() :: #{limit => pos_integer(),
+		dir => binary(),
+		from => start}.
+
+
+
+%% @doc Connects to a local hardcoded database on the developers machine.
+%% This function will either be removed in a future releae or the parameters will
+%% be loaded from file.
+%% @end
+-spec connect() -> {ok, epgsql:connection()} | {error, epgsql:connect_error()}.
 connect() ->
 	connect("localhost", "bjarne", "password", "bjarne").
+
+%% @doc A wrapper to the epgsql:connect/1 function.
+%% The arguments to this function will be used to connect to a database.
+
+-spec connect(Host :: string() | binary(),
+	      Username :: string() | binary(),
+	      Password :: string() | binary(),
+	      Databse :: string() | binary()) -> {ok, epgsql:connection()} | {error, epgsql:connect_error()}.
 
 connect(Host, Username, Password, Database) ->
 	epgsql:connect(#{
@@ -20,7 +42,13 @@ connect(Host, Username, Password, Database) ->
 	    timeout => 4000
 	}).
 
-%% Gets a single event with identification EventId in room with identification RoomId.
+%% @doc Gets a single event.
+%% EventId and RoomId refer to the event's identification and room.
+%% if no event is found then an error is returned. If more than one event
+%% matches the query then only the first event in the list is returned.
+
+-spec get_event(RoomId :: binary() |string(), EventId :: binary() | string()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+
 get_event(RoomId, EventId) ->
 	{ok, C} = connect(),
 	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
@@ -36,7 +64,9 @@ get_event(RoomId, EventId) ->
 			{error, Reason}
 	end.
 
-%% Returns a list of messages in room RoomId with filter parameters Qs
+%% @doc Get a list of messages from a room.
+%% RoomId is the id of the room to get the messages from.
+%% Qs is the Query string 
 get_messages(RoomId, Qs) ->
 	{ok, C} = connect(),
 	Limit = maps:get(limit, Qs),

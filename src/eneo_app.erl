@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%% @doc honours public API
+%% @doc eneo public API
 %% @end
 %%%-------------------------------------------------------------------
 
@@ -14,15 +14,12 @@ start(_StartType, _StartArgs) ->
 		{'_', [
 		       %% {route, erlang module, [handle, options ... ]}
 		       	%% account management
-			{"/whoami", matrix_auth, [whoami]},
-			{"/login", matrix_auth, [login]},
-			{"/_matrix/client/r0/login", matrix_auth, [login]},
-			{"/_matrix/client/v3/account/whoami", matrix_auth, [whoami]},
+			{"/whoami", eneo_auth, [whoami]},
+			{"/login", eneo_auth, [login]},
 			%% room participation
 			{"/sync", rooms, [sync]},
 			{"/rooms/:roomId/messages", rooms, [messages]},
-			{"/rooms/:roomId/event/:eventId", rooms, [event]},
-			{"/_", matrix_auth, [logging]}
+			{"/rooms/:roomId/event/:eventId", rooms, [event]}
 	      	]}
 	]),
 	{ok, _} = cowboy:start_clear(http, [

@@ -1,4 +1,4 @@
--module(matrix_auth).
+-module(eneo_auth).
 
 -export([init/2]).
 
@@ -6,7 +6,7 @@ init(Req, Opts) ->
 	Method = cowboy_req:method(Req),
 	[Action|_] = Opts,
 	Req1 = handle(Method, Action, Req),
-	{ok, Req, Opts}.
+	{ok, Req1, Opts}.
 
 handle(<<"GET">>, whoami, Req) ->
 	Qs = cowboy_req:parse_qs(Req),
@@ -43,7 +43,7 @@ handle(<<"POST">>, login, Req1) ->
 		     catch error:_ -> send_400(<<"M_INVALID_PARAM">>, <<"Invalid login submission">>, Req) end,
 
 	User = try maps:get(<<"user">>, Identifier)
-	       catch error:E -> send_400(<<"M_UNKNOWN">>, <<"User identifier is missing 'user' key">>, Req) end,
+	       catch error:_ -> send_400(<<"M_UNKNOWN">>, <<"User identifier is missing 'user' key">>, Req) end,
 
 	Password = try maps:get(<<"password">>, JSON)
 		   catch error:_ -> send_400(<<"M_INVALID_PARAM">>, <<"Bad parameter: password">>, Req) end,
@@ -71,7 +71,6 @@ handle(<<"POST">>, login, Req1) ->
 	 }, ReplyJSON, Req);
 
 handle(<<"GET">>, logging, Req) ->
-	io:format("user connected to ~s~n", [cowboy_req:path()]),
 	cowboy_req:reply(200, Req);
 
 handle(_, _, Req) ->

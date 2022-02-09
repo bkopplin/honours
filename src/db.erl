@@ -46,8 +46,8 @@ connect(Host, Username, Password, Database) ->
 
 %% @doc Gets a single event.
 %% EventId and RoomId refer to the event's identification and room.
-%% if no event is found then an error is returned. If more than one event
-%% matches the query then only the first event in the list is returned.
+%% If no event is found then an error is returned. If more than one event
+%% matches the arguments, only the first event in the list is returned.
 
 -spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
 

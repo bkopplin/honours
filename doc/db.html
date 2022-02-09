@@ -10,34 +10,58 @@
 <hr>
 
 <h1>Module db</h1>
-<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>The module provides an API for database queries.
+
+
+<h2><a name="description">Description</a></h2>The module provides an API for database queries.
+  For the time being, this module has no support for concurrency.
+  At a later stage, it is expected to make use of OTP patterns.
+<h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-event_id">event_id()</a></h3>
+<p><tt>event_id() = string() | binary()</tt></p>
+
+
+<h3 class="typedecl"><a name="type-qs">qs()</a></h3>
+<p><tt>qs() = #{limit =&gt; pos_integer(), dir =&gt; binary(), from =&gt; start}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-room_id">room_id()</a></h3>
+<p><tt>room_id() = string() | binary()</tt></p>
 
 
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#connect-0">connect/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#get_event-2">get_event/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#get_messages-2">get_messages/2</a></td><td></td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#connect-0">connect/0</a></td><td>Connects to a local hardcoded database on the developers machine.</td></tr>
+<tr><td valign="top"><a href="#get_event-2">get_event/2</a></td><td>Gets a single event.</td></tr>
+<tr><td valign="top"><a href="#get_messages-2">get_messages/2</a></td><td>Get a list of messages from a room.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
 <h3 class="function"><a name="connect-0">connect/0</a></h3>
 <div class="spec">
-<p><tt>connect() -&gt; any()</tt></p>
+<p><tt>connect() -&gt; {ok, <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql.html#type-connection">epgsql:connection()</a>} | {error, <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql.html#type-connect_error">epgsql:connect_error()</a>}</tt><br></p>
 <p> </p>
-</div>
+</div><p>Connects to a local hardcoded database on the developers machine.
+  This function will either be removed in a future releae or the parameters will
+  be loaded from file.</p>
 
 <h3 class="function"><a name="get_event-2">get_event/2</a></h3>
 <div class="spec">
-<p><tt>get_event(RoomId, EventId) -&gt; any()</tt></p>
+<p><tt>get_event(RoomId::<a href="#type-room_id">room_id()</a>, EventId::<a href="#type-event_id">event_id()</a>) -&gt; {ok, any()} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
 <p> </p>
-</div>
+</div><p>Gets a single event.
+  EventId and RoomId refer to the event's identification and room.
+  if no event is found then an error is returned. If more than one event
+  matches the query then only the first event in the list is returned.</p>
 
 <h3 class="function"><a name="get_messages-2">get_messages/2</a></h3>
 <div class="spec">
-<p><tt>get_messages(RoomId, Qs) -&gt; any()</tt></p>
+<p><tt>get_messages(RoomId::<a href="#type-room_id">room_id()</a>, Qs::<a href="#type-qs">qs()</a>) -&gt; {ok, any()} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
 <p> </p>
-</div>
+</div><p>Get a list of messages from a room.
+  RoomId is the id of the room to get the messages from.
+  Qs is the Query string</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

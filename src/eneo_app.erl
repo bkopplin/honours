@@ -17,7 +17,6 @@ start(_StartType, _StartArgs) ->
 			{"/whoami", eneo_auth, [whoami]},
 			{"/login", eneo_auth, [login]},
 			%% room participation
-			{"/sync", rooms, [sync]},
 			{"/rooms/:roomId/messages", rooms, [messages]},
 			{"/rooms/:roomId/event/:eventId", rooms, [event]}
 	      	]}

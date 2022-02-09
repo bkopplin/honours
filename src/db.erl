@@ -57,7 +57,7 @@ get_event(RoomId, EventId) ->
 		{ok, Cols, [Row|_]} -> 
 			ok = epgsql:close(C),
 			RowList = erlang:tuple_to_list(Row),
-			{ok,match_col_row(Cols, RowList)};
+			{ok,zip_col_row(Cols, RowList)};
 		{ok, _, []} ->
 			ok = epgsql:close(C),
 			{error, not_found};
@@ -89,48 +89,62 @@ get_messages(RoomId, Qs) ->
 			{error, Reason}
 	end.
 
+%% @doc Converts a table into a list of maps. Given a column and a corresponding list of row tuples
+%% as returned by {@link epgsql:squery/2. epgsql:squery/2}, this function creates a list of maps for every row
+%% where the key is the name of a column and the value the corresponding row element. The output of this
+%% function is intended to be parsed to json.
+%% @end
+
+-spec table_to_list(Cols :: [#column{}], [] | [tuple()]) -> [#{binary() => any()}].
+
 table_to_list(Cols, [Row|Rest]) ->
-	[maps:from_list(match_col_row(Cols, erlang:tuple_to_list(Row)))|table_to_list(Cols, Rest)];
+	[maps:from_list(zip_col_row(Cols, erlang:tuple_to_list(Row)))|table_to_list(Cols, Rest)];
 table_to_list(_Cols, []) -> [].
 
-%% 
-%% Converts the given list of epgsql-columns and a corresponding list of row elements into a list of the form [{columnName, RowElement}].
+%% @doc Zips a list of columns and a row. The returned list is of the form [{columnName, RowElement}].
 %% Note that both the column and row have to be of type list.
-%%
-match_col_row([Col|RemCols], [RowElement|RemRow]) ->
+%% @end
+
+-spec zip_col_row(Cols :: [#column{}] | [], Row :: tuple() | [any()] | []) -> [{binary(), any()}].
+
+zip_col_row(Cols, Row) when is_tuple(Row) ->
+	zip_col_row(Cols, erlang:tuple_to_list(Row));
+zip_col_row([Col|RemCols], [RowElement|RemRow]) ->
 	ColTitle = Col#column.name,
 	case Col#column.type of
 		jsonb when is_atom(RowElement) ->
-			[{ColTitle, jiffy:decode(erlang:atom_to_binary(RowElement), [return_maps])}|match_col_row(RemCols, RemRow)];
+			[{ColTitle, jiffy:decode(erlang:atom_to_binary(RowElement), [return_maps])}|zip_col_row(RemCols, RemRow)];
 		jsonb ->
-			[{ColTitle, jiffy:decode(RowElement, [return_maps])}|match_col_row(RemCols, RemRow)];
+			[{ColTitle, jiffy:decode(RowElement, [return_maps])}|zip_col_row(RemCols, RemRow)];
 
 		_ ->
-			[{ColTitle, RowElement}|match_col_row(RemCols, RemRow)]
+			[{ColTitle, RowElement}|zip_col_row(RemCols, RemRow)]
 	end;
-match_col_row([], []) ->
+zip_col_row([], []) ->
 	[].
 
 -ifdef(EUNIT).
 %%% -----
 %%% Tests
 %%% -----
-match_col_row_empty_values_test_() ->
-	[?_assertEqual([], match_col_row([],[])),
-	 ?_assertError(function_clause, match_col_row([],[foo])),
-	 ?_assertError(function_clause, match_col_row([generate_column(<<"foo">>, text)], []))
+zip_col_row_empty_values_test_() ->
+	[?_assertEqual([], zip_col_row([],[])),
+	 ?_assertError(function_clause, zip_col_row([],[foo])),
+	 ?_assertError(function_clause, zip_col_row([generate_column(<<"foo">>, text)], []))
 	].
 		      
 
-match_col_row_single_column_test() ->
-	?assertEqual([{<<"event_id">>, <<"123">>}], match_col_row([generate_column(<<"event_id">>, text)], [<<"123">>]) ).
+zip_col_row_single_column_test_() ->
+	[?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], [<<"123">>])),
+	?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], {<<"123">>}))
+	].
 
-match_col_row_multiple_columns_test() ->
+zip_col_row_multiple_columns_test() ->
 	?assertEqual(
 	   [{<<"content">>, #{<<"body">> => <<"hello world">>, <<"msgtype">> => <<"m.text">>}},
 	    {<<"event_id">>, <<"123">>},
 	    {<<"origin_server_ts">>, 1638547064954}], 
-	   match_col_row(
+	   zip_col_row(
 	     [generate_column(<<"content">>, jsonb),
 	      generate_column(<<"event_id">>, text),
 	      generate_column(<<"origin_server_ts">>, int8)
@@ -148,15 +162,16 @@ db_test_() ->
 		      ] end
 	  }.
 
-%%% -------------------------
-%%% Internal Helper Functions
-%%% -------------------------
+%% -------------------------
+%% Test Helper Functions
+%% -------------------------
 
-%%%
-%%% Generates an epgsql column for testing purposes
-%%% Name :: binary string
-%%% type :: atom
-%%%
+%% @doc Generates an epgsql column for testing purposes.
+%% Takes in the columns name and type and sets the remaining values to default values.
+%% @end
+
+-spec generate_column(Name :: binary(), Type :: atom()) -> #column{].
+
 generate_column(Name, Type) ->
 	#column{name = Name,type = Type,oid = 3802,
         size = -1,modifier = -1,format = 0,table_oid = 16619,

@@ -14,6 +14,8 @@
 -type qs() :: #{limit => pos_integer(),
 		dir => binary(),
 		from => start}.
+-type room_id() :: string() | binary().
+-type event_id() :: string() | binary().
 
 
 
@@ -47,7 +49,7 @@ connect(Host, Username, Password, Database) ->
 %% if no event is found then an error is returned. If more than one event
 %% matches the query then only the first event in the list is returned.
 
--spec get_event(RoomId :: binary() |string(), EventId :: binary() | string()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+-spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
 
 get_event(RoomId, EventId) ->
 	{ok, C} = connect(),
@@ -67,6 +69,11 @@ get_event(RoomId, EventId) ->
 %% @doc Get a list of messages from a room.
 %% RoomId is the id of the room to get the messages from.
 %% Qs is the Query string 
+%% @end
+
+%% @TODO change {ok, any()} to reflect spec of table list
+-spec get_messages(RoomId :: room_id(), Qs :: qs()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+
 get_messages(RoomId, Qs) ->
 	{ok, C} = connect(),
 	Limit = maps:get(limit, Qs),

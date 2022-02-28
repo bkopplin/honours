@@ -40,7 +40,10 @@ handle_request(<<"GET">>, event, Req) ->
 		{error, not_found} -> reply(404, #{
 					<<"errcode">> => <<"M_NOT_FOUND">>,
 					<<"error">> => <<"Could not find event {EVENTID}">>
-				       }, Req)
+				       }, Req);
+		{error, _Reason} -> reply(404, #{
+				<<"errcode">> => <<"UNIMPLEMENTED">>,
+				<<"error">> => <<"unimplemented">>}, Req)
 	end;
 
 

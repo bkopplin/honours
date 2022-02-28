@@ -170,7 +170,7 @@ db_test_() ->
 %% Takes in the columns name and type and sets the remaining values to default values.
 %% @end
 
--spec generate_column(Name :: binary(), Type :: atom()) -> #column{].
+-spec generate_column(Name :: binary(), Type :: atom()) -> #column{}.
 
 generate_column(Name, Type) ->
 	#column{name = Name,type = Type,oid = 3802,

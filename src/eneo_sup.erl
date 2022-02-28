@@ -29,7 +29,22 @@ init([]) ->
     SupFlags = #{strategy => one_for_all,
                  intensity => 0,
                  period => 1},
-    ChildSpecs = [],
+    ChildSpecs = children(),
     {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions
+
+children() ->
+		DbConfig = #{host => "localhost",
+						 username => "bjarne",
+						 password => "password",
+						 database => "bjarne",
+						 timeout => 4000
+						},
+		[#{id => db,
+		   start => {db, start_link, [DbConfig]},
+		   restart => permanent,
+		   shutdown => brutal_kill,
+		   type => worker,
+		   modules => [db]
+		  }].

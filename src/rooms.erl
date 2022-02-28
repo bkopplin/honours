@@ -36,11 +36,11 @@ handle_request(<<"GET">>, event, Req) ->
 	EventId = cowboy_req:binding(eventId, Req),
 
 	case db:get_event(RoomId, EventId) of
-		{ok, Event} -> reply(200, Event, Req);
-		{error, not_found} -> reply(404, #{
+		{ok, []} -> reply(404, #{
 					<<"errcode">> => <<"M_NOT_FOUND">>,
 					<<"error">> => <<"Could not find event {EVENTID}">>
 				       }, Req);
+		{ok, [Event|_]} -> reply(200, Event, Req);
 		{error, _Reason} -> reply(404, #{
 				<<"errcode">> => <<"UNIMPLEMENTED">>,
 				<<"error">> => <<"unimplemented">>}, Req)
@@ -52,8 +52,8 @@ handle_request(<<"GET">>, messages, Req) ->
 	Qs = cowboy_req:match_qs([{limit, int, 10}, {dir, [], <<"b">>}, {from, [], start}], Req),
 	io:format("QS: ~p~n", [Qs]),
 	case db:get_messages(RoomId, Qs) of
-		{ok, Event} -> reply(200, Event, Req);
-		{error, _} -> reply(404, #{<<"error">> => <<"NOT IMPLEMENTED">>}, Req)
+		{ok, Events} -> reply(200, Events, Req);
+		{error, _} -> reply(404, #{<<"error">> => <<"error while querying the database, no events returned">>}, Req)
 	end.
 
 %% @doc Sends a reply back to the client.

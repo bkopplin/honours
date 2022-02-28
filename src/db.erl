@@ -5,8 +5,11 @@
 
 -module(db).
 
+-export([start_link/1, stop/0]).
+-export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 -export([get_event/2, get_messages/2]).
--export([connect/0]).
+
+-behaviour(gen_server).
 
 -include_lib("epgsql/include/epgsql.hrl").
 -include_lib("eunit/include/eunit.hrl").
@@ -16,33 +19,15 @@
 		from => start}.
 -type room_id() :: string() | binary().
 -type event_id() :: string() | binary().
+-type table() :: [#{binary() => any()}].
+-type event() :: #{binary() => any()}.
 
 
+start_link(DbConfig) ->
+		gen_server:start_link({local, ?MODULE}, ?MODULE, DbConfig, []).
 
-%% @doc Connects to a local hardcoded database on the developers machine.
-%% This function will either be removed in a future releae or the parameters will
-%% be loaded from file.
-%% @end
--spec connect() -> {ok, epgsql:connection()} | {error, epgsql:connect_error()}.
-connect() ->
-	connect("localhost", "bjarne", "password", "bjarne").
-
-%% @doc A wrapper to the epgsql:connect/1 function.
-%% The arguments to this function will be used to connect to a database.
-
--spec connect(Host :: string() | binary(),
-	      Username :: string() | binary(),
-	      Password :: string() | binary(),
-	      Databse :: string() | binary()) -> {ok, epgsql:connection()} | {error, epgsql:connect_error()}.
-
-connect(Host, Username, Password, Database) ->
-	epgsql:connect(#{
-	    host => Host,
-	    username => Username,
-	    password => Password,
-	    database => Database,
-	    timeout => 4000
-	}).
+stop() ->
+		gen_server:stop(?MODULE).
 
 %% @doc Gets a single event.
 %% EventId and RoomId refer to the event's identification and room.
@@ -52,19 +37,7 @@ connect(Host, Username, Password, Database) ->
 -spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
 
 get_event(RoomId, EventId) ->
-	{ok, C} = connect(),
-	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
-		{ok, Cols, [Row|_]} -> 
-			ok = epgsql:close(C),
-			RowList = erlang:tuple_to_list(Row),
-			{ok,zip_col_row(Cols, RowList)};
-		{ok, _, []} ->
-			ok = epgsql:close(C),
-			{error, not_found};
-		{error, Reason} ->
-			ok = epgsql:close(C),
-			{error, Reason}
-	end.
+	gen_server:call(?MODULE, {get_event, RoomId, EventId}).
 
 %% @doc Get a list of messages from a room.
 %% RoomId is the id of the room to get the messages from.
@@ -75,19 +48,60 @@ get_event(RoomId, EventId) ->
 -spec get_messages(RoomId :: room_id(), Qs :: qs()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
 
 get_messages(RoomId, Qs) ->
-	{ok, C} = connect(),
+	gen_server:call(?MODULE, {get_messages, RoomId, Qs}).
+
+%%% 
+%%% gen_server Module callback functions
+%%%
+
+init(DbConfig) ->
+	case epgsql:connect(DbConfig) of
+			{ok, C} ->
+					{ok, C};
+			{error, R} ->
+					{stop, R}
+	end.
+
+terminate(_Reason, C) ->
+		epgsql:close(C).
+
+handle_call({get_event, RoomId, EventId}, _From, C) ->
+	{reply, select_event(C, RoomId, EventId), C};
+
+handle_call({get_messages, RoomId, Qs}, _From, C) ->
 	Limit = maps:get(limit, Qs),
-	case epgsql:equery(C, "SELECT content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key FROM Events WHERE room_id = $1 ORDER BY depth DESC LIMIT $2", [RoomId, Limit]) of
-		{ok, _Cols, []} ->
-			ok = epgsql:close(C),
-			{error, not_found};
-		{ok, Cols, Rows} ->
-			ok = epgsql:close(C),
-			{ok,table_to_list(Cols, Rows)};
+	{reply, select_messages(C, RoomId, Limit), C}.
+
+handle_cast(_, C) ->
+		{noreply, C}.
+	
+
+%%% 
+%%% Internals
+%%%
+
+%% @doc Queries a database for all messages that match the Arguments
+-spec select_messages(C :: epgsql:connection(), RoomId :: room_id(), Limit :: integer()) -> table() | {error, any()}.
+select_messages(C, RoomId, Limit) ->
+		case epgsql:equery(C, "SELECT content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key FROM Events WHERE room_id = $1 ORDER BY depth DESC LIMIT $2", [RoomId, Limit]) of
+				{ok, Cols, Rows} ->
+						{ok, table_to_list(Cols, Rows)};
+				{error, Reason} ->
+						{error, Reason}
+		end.
+
+%% @doc Queries database for a single event, but returns a list
+-spec select_event(C :: epgsql:connection(), RoomId :: room_id(), EventId :: event_id() ) -> table() | {error, any()}.
+select_event(C, RoomId, EventId) ->
+	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
+		{ok, Cols, Rows} -> 
+			{ok, table_to_list(Cols, Rows)};
+		%{ok, _, []} ->
+			%{reply, {error, not_found}, C};
 		{error, Reason} ->
-			ok = epgsql:close(C),
 			{error, Reason}
 	end.
+
 
 %% @doc Converts a table into a list of maps. Given a column and a corresponding list of row tuples
 %% as returned by {@link epgsql:squery/2. epgsql:squery/2}, this function creates a list of maps for every row
@@ -95,7 +109,7 @@ get_messages(RoomId, Qs) ->
 %% function is intended to be parsed to json.
 %% @end
 
--spec table_to_list(Cols :: [#column{}], [] | [tuple()]) -> [#{binary() => any()}].
+-spec table_to_list(Cols :: [#column{}], [] | [tuple()]) -> table().
 
 table_to_list(Cols, [Row|Rest]) ->
 	[maps:from_list(zip_col_row(Cols, erlang:tuple_to_list(Row)))|table_to_list(Cols, Rest)];
@@ -152,15 +166,6 @@ zip_col_row_multiple_columns_test() ->
 	     [
 	 	<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954
 	     ])).
-
-db_test_() ->
-	  {setup,spawn,
-	   fun () ->  {ok, C} = connect("localhost", "bjarne", "password", "bjarne"), C end,
-	   fun (C) -> epgsql:close(C) end,
-	   fun (C) -> [
-		     	?_assertMatch({ok,_, [{<<"eid4">>}]} , epgsql:equery(C, "select event_id from Events WHERE event_id = 'eid4';")) 
-		      ] end
-	  }.
 
 %% -------------------------
 %% Test Helper Functions

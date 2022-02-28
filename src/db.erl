@@ -19,6 +19,8 @@
 		from => start}.
 -type room_id() :: string() | binary().
 -type event_id() :: string() | binary().
+-type table() :: [#{binary() => any()}].
+-type event() :: #{binary() => any()}.
 
 
 start_link(DbConfig) ->
@@ -76,14 +78,7 @@ handle_call({get_event, RoomId, EventId}, _From, C) ->
 
 handle_call({get_messages, RoomId, Qs}, _From, C) ->
 	Limit = maps:get(limit, Qs),
-	case epgsql:equery(C, "SELECT content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key FROM Events WHERE room_id = $1 ORDER BY depth DESC LIMIT $2", [RoomId, Limit]) of
-		{ok, _Cols, []} ->
-			{reply, {error, not_found}, C};
-		{ok, Cols, Rows} ->
-			{reply, {ok,table_to_list(Cols, Rows)}, C};
-		{error, Reason} ->
-			{reply, {error, Reason}, C}
-	end.
+	{reply, select_messages(C, RoomId, Limit), C}.
 
 handle_cast(_, C) ->
 		{noreply, C}.
@@ -93,13 +88,24 @@ handle_cast(_, C) ->
 %%% Internals
 %%%
 
+%% @doc Queries a database for all messages that match the Arguments
+-spec select_messages(C :: epgsql:connection(), RoomId :: room_id(), Limit :: integer()) -> table() | {error, any()}.
+select_messages(C, RoomId, Limit) ->
+		case epgsql:equery(C, "SELECT content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key FROM Events WHERE room_id = $1 ORDER BY depth DESC LIMIT $2", [RoomId, Limit]) of
+				{ok, Cols, Rows} ->
+						{ok, table_to_list(Cols, Rows)};
+				{error, Reason} ->
+						{error, Reason}
+		end.
+
+
 %% @doc Converts a table into a list of maps. Given a column and a corresponding list of row tuples
 %% as returned by {@link epgsql:squery/2. epgsql:squery/2}, this function creates a list of maps for every row
 %% where the key is the name of a column and the value the corresponding row element. The output of this
 %% function is intended to be parsed to json.
 %% @end
 
--spec table_to_list(Cols :: [#column{}], [] | [tuple()]) -> [#{binary() => any()}].
+-spec table_to_list(Cols :: [#column{}], [] | [tuple()]) -> table().
 
 table_to_list(Cols, [Row|Rest]) ->
 	[maps:from_list(zip_col_row(Cols, erlang:tuple_to_list(Row)))|table_to_list(Cols, Rest)];

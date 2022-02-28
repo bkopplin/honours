@@ -66,15 +66,7 @@ terminate(_Reason, C) ->
 		epgsql:close(C).
 
 handle_call({get_event, RoomId, EventId}, _From, C) ->
-	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
-		{ok, Cols, [Row|_]} -> 
-			RowList = erlang:tuple_to_list(Row),
-			{reply, {ok, lists:nth(1, table_to_list(Cols, [Row]))}, C};
-		{ok, _, []} ->
-			{reply, {error, not_found}, C};
-		{error, Reason} ->
-			{reply, {error, Reason}, C}
-	end;
+	{reply, select_event(C, RoomId, EventId), C};
 
 handle_call({get_messages, RoomId, Qs}, _From, C) ->
 	Limit = maps:get(limit, Qs),
@@ -97,6 +89,18 @@ select_messages(C, RoomId, Limit) ->
 				{error, Reason} ->
 						{error, Reason}
 		end.
+
+%% @doc Queries database for a single event, but returns a list
+-spec select_event(C :: epgsql:connection(), RoomId :: room_id(), EventId :: event_id() ) -> table() | {error, any()}.
+select_event(C, RoomId, EventId) ->
+	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
+		{ok, Cols, Rows} -> 
+			{ok, table_to_list(Cols, Rows)};
+		%{ok, _, []} ->
+			%{reply, {error, not_found}, C};
+		{error, Reason} ->
+			{error, Reason}
+	end.
 
 
 %% @doc Converts a table into a list of maps. Given a column and a corresponding list of row tuples

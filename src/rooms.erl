@@ -36,11 +36,11 @@ handle_request(<<"GET">>, event, Req) ->
 	EventId = cowboy_req:binding(eventId, Req),
 
 	case db:get_event(RoomId, EventId) of
-		{ok, Event} -> reply(200, Event, Req);
-		{error, not_found} -> reply(404, #{
+		{ok, []} -> reply(404, #{
 					<<"errcode">> => <<"M_NOT_FOUND">>,
 					<<"error">> => <<"Could not find event {EVENTID}">>
 				       }, Req);
+		{ok, [Event|_]} -> reply(200, Event, Req);
 		{error, _Reason} -> reply(404, #{
 				<<"errcode">> => <<"UNIMPLEMENTED">>,
 				<<"error">> => <<"unimplemented">>}, Req)

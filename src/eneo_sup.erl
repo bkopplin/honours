@@ -35,12 +35,13 @@ init([]) ->
 %% internal functions
 
 children() ->
-		DbConfig = #{host => "localhost",
-						 username => "bjarne",
-						 password => "password",
-						 database => "bjarne",
-						 timeout => 4000
-						},
+		%DbConfig = #{host => "localhost",
+		%				 username => "bjarne",
+		%				 password => "password",
+		%				 database => "bjarne",
+		%				 timeout => 4000
+		%				},
+		{ok, DbConfig} = application:get_env(eneo, dbconfig),
 		[#{id => db,
 		   start => {db, start_link, [DbConfig]},
 		   restart => permanent,
@@ -48,3 +49,4 @@ children() ->
 		   type => worker,
 		   modules => [db]
 		  }].
+

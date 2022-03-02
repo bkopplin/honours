@@ -10,7 +10,7 @@ services:
                 #command: tail -f /dev/null
                 environment:
                         PG_PASSWORD: password
-                        PG_USER: Beneo
+                        PG_USER: eneo
                         PG_DATABASE: eneo
                         PG_HOST: eneo_db
         db:

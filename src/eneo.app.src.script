@@ -1,26 +1,3 @@
-Host = case os:getenv("PG_HOST") of
-	false -> "localhost";
-	[] -> "localhost";
-	PGHOST -> PGHOST end,
-Username = case os:getenv("PG_USER") of
-	false -> "eneo";
-	[] -> "eneo";
-	PGUSER -> PGUSER 
-	end,
-Password = case os:getenv("PG_PASSWORD") of
-	false -> "";
-	[] -> "";
-	PGPW -> PGPW
-	end,
-Database = case os:getenv("PG_DATABASE") of
-	false -> "eneo";
-	[] -> "eneo";
-	PGDB -> PGDB
-	end,
-Foo = case os:getenv("foo") of
-	false -> nope;
-	[] -> empty;
-	X -> X end,
 {application, eneo,
  [{description, "An OTP application"},
   {vsn, "0.1.0"},
@@ -34,12 +11,6 @@ Foo = case os:getenv("foo") of
     epgsql
    ]},
   {env,[
-	{dbconfig, #{host => Host,
-			username => Username,
-			password => Password,
-			database => Database,
-			timeout => 4000}},
-	{foo, Foo}
   ]},
   {modules, []},
 

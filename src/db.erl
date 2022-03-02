@@ -24,10 +24,10 @@
 
 
 start_link(DbConfig) ->
-		gen_server:start_link({local, ?MODULE}, ?MODULE, DbConfig, []).
+	gen_server:start_link({local, ?MODULE}, ?MODULE, DbConfig, []).
 
 stop() ->
-		gen_server:stop(?MODULE).
+	gen_server:stop(?MODULE).
 
 %% @doc Gets a single event.
 %% EventId and RoomId refer to the event's identification and room.
@@ -55,15 +55,17 @@ get_messages(RoomId, Qs) ->
 %%%
 
 init(DbConfig) ->
+	%receive X -> X after 5000 -> timeout end,
 	case epgsql:connect(DbConfig) of
 			{ok, C} ->
-					{ok, C};
+				{ok, C};
 			{error, R} ->
-					{stop, R}
+				{stop, normal}
 	end.
 
 terminate(_Reason, C) ->
-		epgsql:close(C).
+	io:format("[DEBUG] db:terminate/2 : terminating db~n"),
+	epgsql:close(C).
 
 handle_call({get_event, RoomId, EventId}, _From, C) ->
 	{reply, select_event(C, RoomId, EventId), C};

@@ -7,7 +7,6 @@ services:
                 volumes:
                         - ../../:/home/bjarne/code/eneo
                 command: /home/bjarne/code/eneo/_build/default/rel/eneo/bin/eneo foreground
-                #command: tail -f /dev/null
                 environment:
                         PG_PASSWORD: password
                         PG_USER: eneo
@@ -24,6 +23,13 @@ services:
                         POSTGRES_PASSWORD: password
                         POSTGRES_USER: eneo
                         POSTGRES_DB: eneo
+        loadbalancer:
+                image: eneo_lb
+                ports:
+                        - "8081:80"
+                depends_on:
+                        - eneo
+                        - db
 
 volumes:
         eneo-data:

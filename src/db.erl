@@ -60,7 +60,7 @@ init(DbConfig) ->
 			{ok, C} ->
 				{ok, C};
 			{error, R} ->
-				{stop, normal}
+				{stop, R}
 	end.
 
 terminate(_Reason, C) ->

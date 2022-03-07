@@ -5,6 +5,10 @@
   {git,"https://github.com/epgsql/epgsql",
        {ref,"f7530f63ae40ea2b81bae7d4a33292212349b761"}},
   0},
+ {<<"ibrowse">>,
+  {git,"https://github.com/cmullaparthi/ibrowse/",
+       {ref,"22d6fd6baa6e83633aa2923f41589945c1d2dc2f"}},
+  0},
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"1.0.8">>},0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.8.0">>},1}]}.
 [

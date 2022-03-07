@@ -13,5 +13,5 @@ export const options = {
 export default function() {
 		const res = http.get(host + '/rooms/!r1:localhost/messages');
 		check(res, { 'status was 200': (r) => r.status == 200});
-		sleep(0.001);
+		sleep(0.0001);
 }

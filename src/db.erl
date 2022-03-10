@@ -8,6 +8,7 @@
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 -export([get_event/2, get_messages/2]).
+
 -ifdef(TEST).
 -compile(export_all).
 -endif.
@@ -141,3 +142,10 @@ zip_col_row([Col|RemCols], [RowElement|RemRow]) ->
 zip_col_row([], []) ->
 	[].
 
+%% @doc Inserts a m.room.message event into the Event table.
+-spec insert_message(C :: epgsql:connection(), Body :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> ok | {error, unknown_room}.
+
+insert_message(C, Body, RoomId, Sender, TxdId) ->
+	unimplemented.
+
+		

@@ -1,6 +1,6 @@
 -module(db_tests).
 
--import(db, [table_to_list/2, zip_col_row/2]).
+-import(db, [table_to_list/2, zip_col_row/2, insert_message/5]).
 
 -include_lib("epgsql/include/epgsql.hrl").
 -include_lib("eunit/include/eunit.hrl").
@@ -26,10 +26,18 @@ zip_test_() ->
 		 {"zip multiple columns", zip_multiple_columns()}
 		].
 
-message_test_() ->
+insert_message_test_() ->
 		[
-		 ?setup(fun test_empty_database/1),
-		 ?setup(fun test_insert_message/1)
+		 {"test empty database working",
+			?setup(fun empty_database/1)},
+		 {"insert message into room",
+		 	?setup(fun insert_message/1)},
+		 {"insert message into non-existing room",
+		  	?setup(fun insert_message_nonexisting_room/1)},
+		 {"insert two messages with different txdId's",
+		 	?setup(fun insert_message_different_txdid/1)},
+		 {"insert two messages with same txdId's",
+		 	?setup(fun insert_message_same_txdid/1)}
 		].
 
 %% ---------------------
@@ -53,15 +61,6 @@ test_stop(C) ->
 %% Test Helper Functions
 %% -------------------------
 
-test_empty_database(C) ->
-		 ?_assertMatch({ok, _, []}, epgsql:squery(C, "SELECT event_id FROM events;")).
-
-test_insert_message(C) ->
-	epgsql:equery(C, "INSERT INTO Events (content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ('{\"body\": \"hello test\", \"msgtype\": \"m.text\"}',   '123', 1638547064954, '!test:localhost', '@tester:localhost', 'm.room.message', '{\"age\": 4046466692}', NULL, 11);"),
-	Events = epgsql:equery(C, "SELECT event_id FROM events;"),
-	?_assertMatch({ok, _, [{<<"123">>}]}, Events).
-
-
 zip_multiple_columns() ->
 	Expected = [
 		{<<"content">>, #{<<"body">> => <<"hello world">>, <<"msgtype">> => <<"m.text">>}},
@@ -76,6 +75,30 @@ zip_multiple_columns() ->
 	Rows =	[<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954],
 	?_assertEqual(Expected, zip_col_row(Cols, Rows)).
 
+empty_database(C) ->
+ 	?_assertMatch({ok, _, []}, epgsql:squery(C, "SELECT 1 FROM events;")).
+
+insert_message(C) ->
+	self(),
+	mock_create_event(C),
+	InsertResult = insert_message(C, <<"foo">>, "!test:localhost", "@tom:localhost", "txd1"),
+	Events = epgsql:equery(C, "SELECT content FROM events WHERE type='m.room.message';"),
+	?_assertMatch({ok, _, [{<<"foo">>}]}, Events).
+
+insert_message_nonexisting_room(C) ->
+	?_assertMatch({error, unknown_room}, insert_message(C, <<"foo">>, "!notexisting:localhost", "@tom:localhost", "txd1")).
+
+insert_message_different_txdid(C) ->
+	mock_create_event(C),
+	insert_message(C, <<"foo">>, "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, <<"bar">>, "!test:localhost", "@tom:localhost", "txd2"),
+	?_assertMatch({ok, _, [{<<"foo">>}, {<<"bar">>}]} , epgsql:squery(C, "SELECT content FROM events ORDER BY depth;")).
+
+insert_message_same_txdid(C) ->
+	mock_create_event(C),
+	insert_message(C, <<"foo">>, "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, <<"bar">>, "!test:localhost", "@tom:localhost", "txd1"),
+	?_assertMatch({ok, _, [{<<"foo">>}]} , epgsql:squery(C, "SELECT content FROM events ORDER BY depth;")).
 
 %% @doc Generates an epgsql column for testing purposes.
 %% Takes in the columns name and type and sets the remaining values to default values.
@@ -87,3 +110,9 @@ generate_column(Name, Type) ->
 	#column{name = Name,type = Type,oid = 3802,
         size = -1,modifier = -1,format = 0,table_oid = 16619,
         table_attr_number = 1}.
+
+%% @doc inserts a mock m.room.create event.
+%% db:insert_message assumes that a room creation event already exists. It has to be inserted before working with insert 
+
+mock_create_event(C) ->
+	epgsql:equery(C, "INSERT INTO Events (content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ('{\"creator\": \"@tom:localhost\",\"room_version\": \"6\"}', '0', 1635938428328, '!test:localhost', '@tom:localhost', 'm.room.create', '{\"age\": 7773042179}', '', 1);").

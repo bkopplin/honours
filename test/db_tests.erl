@@ -50,8 +50,9 @@ test_start() ->
 								  username => "bjarne",
 								  password => "password",
 								  database => "eneo-test"}),
-		 {ok, Sql} = file:read_file("/home/bjarne/code/eneo/priv/sql/init.sql"),
-		 epgsql:squery(C, Sql),
+		 {ok, Sql} = file:read_file(code:priv_dir(eneo) ++ "/sql/init.sql"),
+		 A = epgsql:squery(C, Sql),
+		 ?debugFmt("A: ~p", [A]),
 		 C.
 
 test_stop(C) ->

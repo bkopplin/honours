@@ -12,6 +12,7 @@
 	ibrowse
    ]},
   {env,[
+	{pg_password, "password"}
   ]},
   {modules, []},
 

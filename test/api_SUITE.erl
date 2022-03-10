@@ -47,13 +47,17 @@ app_running_case(Config) ->
 	ct:pal(Body),
 	ok.
 
-rooms_messages_case(Config) ->
-	ct:pal("~p", [application:info()]),
-	ct:pal("eneo_sup: ~p", [whereis(eneo_sup)]),
-	{ok, "200", _, Body} = ibrowse:send_req("http://localhost:8080/rooms/!r1:localhost/messages", [], get),
-	ok.
 
 %%% ------------------------
 %%% Internal Helper Functions
 %%% -------------------------
 
+create_db(Datname) ->
+		{ok, C} = epgsql:connect(#{
+					username => os:getenv("PG_USERNAME"),
+					password => "password",
+					database => bjarne,
+					host => "localhost"}),
+		epgsql:equery(C, "CREATE DATABASE IF NOT EXISTS $1;", [Datname]), 
+		epgsql:close(C).
+						

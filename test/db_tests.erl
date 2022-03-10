@@ -17,6 +17,15 @@
 %% Test Descriptions
 %% -------------------
 
+zip_test_() ->
+		[
+		 {"empty values", ?_assertEqual([], zip_col_row([], []))},
+		 {"invalid args", ?_assertError(function_clause, zip_col_row([],[foo]))},
+	 	 {"missing arg", ?_assertError(function_clause, zip_col_row([generate_column(<<"foo">>, text)], []))},
+		 {"zip one column", ?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], {<<"123">>}))},
+		 {"zip multiple columns", zip_multiple_columns()}
+		].
+
 message_test_() ->
 		[
 		 ?setup(fun test_empty_database/1),
@@ -52,34 +61,21 @@ test_insert_message(C) ->
 	Events = epgsql:equery(C, "SELECT event_id FROM events;"),
 	?_assertMatch({ok, _, [{<<"123">>}]}, Events).
 
-zip_test() ->
-		?assertEqual([], db:zip_col_row([], [])).
 
-zip_col_row_empty_values_test_() ->
-	[?_assertEqual([], zip_col_row([],[])),
-	 ?_assertError(function_clause, zip_col_row([],[foo])),
-	 ?_assertError(function_clause, zip_col_row([generate_column(<<"foo">>, text)], []))
-	].
-		      
-
-zip_col_row_single_column_test_() ->
-	[?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], [<<"123">>])),
-	?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], {<<"123">>}))
-	].
-
-zip_col_row_multiple_columns_test() ->
-	?assertEqual(
-	   [{<<"content">>, #{<<"body">> => <<"hello world">>, <<"msgtype">> => <<"m.text">>}},
+zip_multiple_columns() ->
+	Expected = [
+		{<<"content">>, #{<<"body">> => <<"hello world">>, <<"msgtype">> => <<"m.text">>}},
 	    {<<"event_id">>, <<"123">>},
-	    {<<"origin_server_ts">>, 1638547064954}], 
-	   zip_col_row(
-	     [generate_column(<<"content">>, jsonb),
-	      generate_column(<<"event_id">>, text),
-	      generate_column(<<"origin_server_ts">>, int8)
-	     ], 
-	     [
-	 	<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954
-	     ])).
+	    {<<"origin_server_ts">>, 1638547064954}
+	], 
+	Cols = [ 
+		generate_column(<<"content">>, jsonb),
+		generate_column(<<"event_id">>, text),
+		generate_column(<<"origin_server_ts">>, int8)
+ 	], 
+	Rows =	[<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954],
+	?_assertEqual(Expected, zip_col_row(Cols, Rows)).
+
 
 %% @doc Generates an epgsql column for testing purposes.
 %% Takes in the columns name and type and sets the remaining values to default values.

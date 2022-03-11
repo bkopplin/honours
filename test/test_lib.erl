@@ -9,7 +9,7 @@ mock_db() ->
 								  database => "eneo-test"}),
 		 {ok, Sql} = file:read_file(code:priv_dir(eneo) ++ "/sql/init.sql"),
 		 epgsql:squery(C, Sql),
-		 C.
+		 {ok, C}.
 
 insert_from_file(C, Application, Filename) ->
 		Filepath = code:priv_dir(Application) ++ Filename,

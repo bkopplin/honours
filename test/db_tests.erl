@@ -31,7 +31,7 @@ insert_message_test_() ->
 		 {"test empty database working",
 			?setup(fun empty_database/1)},
 		 {"insert message into room",
-		 	?setup(fun insert_message/1)},
+		 	?setup(fun insert_message_into_room/1)},
 		 {"insert message into non-existing room",
 		  	?setup(fun insert_message_nonexisting_room/1)},
 		 {"insert two messages with different txdId's",
@@ -79,21 +79,23 @@ zip_multiple_columns() ->
 empty_database(C) ->
  	?_assertMatch({ok, _, []}, epgsql:squery(C, "SELECT 1 FROM events;")).
 
-insert_message(C) ->
-	self(),
+insert_message_into_room(C) ->
+	?debugMsg("insert_message_into_room"),
 	mock_create_event(C),
-	InsertResult = insert_message(C, <<"foo">>, "!test:localhost", "@tom:localhost", "txd1"),
+	InsertResult = insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
 	Events = epgsql:equery(C, "SELECT content FROM events WHERE type='m.room.message';"),
-	?_assertMatch({ok, _, [{<<"foo">>}]}, Events).
+	?_assertMatch({ok, _, [{<<"{}">>}]}, Events).
 
 insert_message_nonexisting_room(C) ->
 	?_assertMatch({error, unknown_room}, insert_message(C, <<"foo">>, "!notexisting:localhost", "@tom:localhost", "txd1")).
 
 insert_message_different_txdid(C) ->
 	mock_create_event(C),
-	insert_message(C, <<"foo">>, "!test:localhost", "@tom:localhost", "txd1"),
-	insert_message(C, <<"bar">>, "!test:localhost", "@tom:localhost", "txd2"),
-	?_assertMatch({ok, _, [{<<"foo">>}, {<<"bar">>}]} , epgsql:squery(C, "SELECT content FROM events ORDER BY depth;")).
+	Content1 = <<"{\"foo\":1}">>,
+	Content2 = <<"{\"bar\":2}">>,
+	insert_message(C, Content1, "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, Content2, "!test:localhost", "@tom:localhost", "txd2"),
+	?_assertMatch({ok, #column{name = <<"content">>}, [{Content1}, {Content2}]} , epgsql:squery(C, "SELECT content FROM events WHERE type = 'm.room.message' ORDER BY depth;")).
 
 insert_message_same_txdid(C) ->
 	mock_create_event(C),

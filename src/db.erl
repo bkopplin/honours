@@ -37,7 +37,7 @@ stop() ->
 %% If no event is found then an error is returned. If more than one event
 %% matches the arguments, only the first event in the list is returned.
 
--spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+-spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, event()} | {error, not_found} | epgsql_sock:error().
 
 get_event(RoomId, EventId) ->
 	gen_server:call(?MODULE, {get_event, RoomId, EventId}).
@@ -47,8 +47,7 @@ get_event(RoomId, EventId) ->
 %% Qs is the Query string 
 %% @end
 
-%% @TODO change {ok, any()} to reflect spec of table list
--spec get_messages(RoomId :: room_id(), Qs :: qs()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+-spec get_messages(RoomId :: room_id(), Qs :: qs()) -> {ok, table()} | {error, not_found} | epgsql_sock:error().
 
 get_messages(RoomId, Qs) ->
 	gen_server:call(?MODULE, {get_messages, RoomId, Qs}).
@@ -142,10 +141,19 @@ zip_col_row([Col|RemCols], [RowElement|RemRow]) ->
 zip_col_row([], []) ->
 	[].
 
+
 %% @doc Inserts a m.room.message event into the Event table.
--spec insert_message(C :: epgsql:connection(), Body :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> ok | {error, unknown_room}.
+-spec insert_message(C :: epgsql:connection(), Body :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
 
 insert_message(C, Body, RoomId, Sender, TxdId) ->
-	unimplemented.
+	case epgsql:equery(C, "SELECT depth FROM events WHERE room_id=$1 ORDER BY depth DESC LIMIT 1;", [RoomId]) of
+		{ok,[#column{name = <<"depth">>}],[{LastDepth}]} ->
+					Depth = LastDepth + 10,
+					{ok, 1, _, [{Eid}]} = epgsql:equery(C, 
+									"INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.message', '{}', ' ', $5) returning event_id;", 
+									[Body, os:system_time(microsecond), RoomId, Sender, Depth]),
+					{ok, Eid}; 
+		{ok,_,[]} -> {error, unknown_room}
+	end.
 
-		
+foo2() -> bar.

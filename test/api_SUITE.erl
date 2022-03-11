@@ -16,7 +16,7 @@ init_per_suite(Config) ->
 	os:putenv("PG_PASSWORD", "password"),
 	application:ensure_all_started(eneo),
 	ibrowse:start(),
-	Conn = test_lib:mock_db(),
+	{ok, Conn} = test_lib:mock_db(),
 	[{conn, Conn}|Config].
 
 end_per_suite(Config) ->

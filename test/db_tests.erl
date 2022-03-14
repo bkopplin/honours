@@ -93,15 +93,15 @@ insert_message_different_txdid(C) ->
 	mock_create_event(C),
 	Content1 = <<"{\"foo\":1}">>,
 	Content2 = <<"{\"bar\":2}">>,
-	insert_message(C, Content1, "!test:localhost", "@tom:localhost", "txd1"),
-	insert_message(C, Content2, "!test:localhost", "@tom:localhost", "txd2"),
-	?_assertMatch({ok, #column{name = <<"content">>}, [{Content1}, {Content2}]} , epgsql:squery(C, "SELECT content FROM events WHERE type = 'm.room.message' ORDER BY depth;")).
+	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd2"),
+	?_assertMatch({ok, _, [{<<"2">>}]} , epgsql:squery(C, "SELECT COUNT(event_id) FROM events WHERE type = 'm.room.message';")).
 
 insert_message_same_txdid(C) ->
 	mock_create_event(C),
-	insert_message(C, <<"foo">>, "!test:localhost", "@tom:localhost", "txd1"),
-	insert_message(C, <<"bar">>, "!test:localhost", "@tom:localhost", "txd1"),
-	?_assertMatch({ok, _, [{<<"foo">>}]} , epgsql:squery(C, "SELECT content FROM events ORDER BY depth;")).
+	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
+	?_assertMatch({ok, _, [{<<"1">>}]} , epgsql:squery(C, "SELECT COUNT(event_id) FROM events WHERE type = 'm.room.message';")).
 
 %% @doc Generates an epgsql column for testing purposes.
 %% Takes in the columns name and type and sets the remaining values to default values.

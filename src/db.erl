@@ -9,10 +9,13 @@
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 -export([get_event/2, get_messages/2]).
 
+-ifdef(TEST).
+-compile(export_all).
+-endif.
+
 -behaviour(gen_server).
 
 -include_lib("epgsql/include/epgsql.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 -type qs() :: #{limit => pos_integer(),
 		dir => binary(),
@@ -24,17 +27,17 @@
 
 
 start_link(DbConfig) ->
-		gen_server:start_link({local, ?MODULE}, ?MODULE, DbConfig, []).
+	gen_server:start_link({local, ?MODULE}, ?MODULE, DbConfig, []).
 
 stop() ->
-		gen_server:stop(?MODULE).
+	gen_server:stop(?MODULE).
 
 %% @doc Gets a single event.
 %% EventId and RoomId refer to the event's identification and room.
 %% If no event is found then an error is returned. If more than one event
 %% matches the arguments, only the first event in the list is returned.
 
--spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+-spec get_event(RoomId :: room_id(), EventId :: event_id()) -> {ok, event()} | {error, not_found} | epgsql_sock:error().
 
 get_event(RoomId, EventId) ->
 	gen_server:call(?MODULE, {get_event, RoomId, EventId}).
@@ -44,8 +47,7 @@ get_event(RoomId, EventId) ->
 %% Qs is the Query string 
 %% @end
 
-%% @TODO change {ok, any()} to reflect spec of table list
--spec get_messages(RoomId :: room_id(), Qs :: qs()) -> {ok, any()} | {error, not_found} | epgsql_sock:error().
+-spec get_messages(RoomId :: room_id(), Qs :: qs()) -> {ok, table()} | {error, not_found} | epgsql_sock:error().
 
 get_messages(RoomId, Qs) ->
 	gen_server:call(?MODULE, {get_messages, RoomId, Qs}).
@@ -55,15 +57,17 @@ get_messages(RoomId, Qs) ->
 %%%
 
 init(DbConfig) ->
+	%receive X -> X after 5000 -> timeout end,
 	case epgsql:connect(DbConfig) of
 			{ok, C} ->
-					{ok, C};
+				{ok, C};
 			{error, R} ->
-					{stop, R}
+				{stop, R}
 	end.
 
 terminate(_Reason, C) ->
-		epgsql:close(C).
+	io:format("[DEBUG] db:terminate/2 : terminating db~n"),
+	epgsql:close(C).
 
 handle_call({get_event, RoomId, EventId}, _From, C) ->
 	{reply, select_event(C, RoomId, EventId), C};
@@ -137,48 +141,19 @@ zip_col_row([Col|RemCols], [RowElement|RemRow]) ->
 zip_col_row([], []) ->
 	[].
 
--ifdef(EUNIT).
-%%% -----
-%%% Tests
-%%% -----
-zip_col_row_empty_values_test_() ->
-	[?_assertEqual([], zip_col_row([],[])),
-	 ?_assertError(function_clause, zip_col_row([],[foo])),
-	 ?_assertError(function_clause, zip_col_row([generate_column(<<"foo">>, text)], []))
-	].
-		      
 
-zip_col_row_single_column_test_() ->
-	[?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], [<<"123">>])),
-	?_assertEqual([{<<"event_id">>, <<"123">>}], zip_col_row([generate_column(<<"event_id">>, text)], {<<"123">>}))
-	].
+%% @doc Inserts a m.room.message event into the Event table.
+-spec insert_message(C :: epgsql:connection(), Body :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
 
-zip_col_row_multiple_columns_test() ->
-	?assertEqual(
-	   [{<<"content">>, #{<<"body">> => <<"hello world">>, <<"msgtype">> => <<"m.text">>}},
-	    {<<"event_id">>, <<"123">>},
-	    {<<"origin_server_ts">>, 1638547064954}], 
-	   zip_col_row(
-	     [generate_column(<<"content">>, jsonb),
-	      generate_column(<<"event_id">>, text),
-	      generate_column(<<"origin_server_ts">>, int8)
-	     ], 
-	     [
-	 	<<"{\"body\": \"hello world\", \"msgtype\": \"m.text\"}">>, <<"123">>,1638547064954
-	     ])).
+insert_message(C, Body, RoomId, Sender, TxdId) ->
+	case epgsql:equery(C, "SELECT depth FROM events WHERE room_id=$1 ORDER BY depth DESC LIMIT 1;", [RoomId]) of
+		{ok,[#column{name = <<"depth">>}],[{LastDepth}]} ->
+					Depth = LastDepth + 10,
+					{ok, 1, _, [{Eid}]} = epgsql:equery(C, 
+									"INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.message', '{}', ' ', $5) returning event_id;", 
+									[Body, os:system_time(microsecond), RoomId, Sender, Depth]),
+					{ok, Eid}; 
+		{ok,_,[]} -> {error, unknown_room}
+	end.
 
-%% -------------------------
-%% Test Helper Functions
-%% -------------------------
-
-%% @doc Generates an epgsql column for testing purposes.
-%% Takes in the columns name and type and sets the remaining values to default values.
-%% @end
-
--spec generate_column(Name :: binary(), Type :: atom()) -> #column{}.
-
-generate_column(Name, Type) ->
-	#column{name = Name,type = Type,oid = 3802,
-        size = -1,modifier = -1,format = 0,table_oid = 16619,
-        table_attr_number = 1}.
--endif.
+foo2() -> bar.

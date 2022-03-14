@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+        eneo:
+                image: eneo
+                working_dir: /home/bjarne/code/eneo
+                volumes:
+                        - ../../:/home/bjarne/code/eneo
+                command: /home/bjarne/code/eneo/_build/default/rel/eneo/bin/eneo foreground
+                environment:
+                        PG_PASSWORD: password
+                        PG_USER: eneo
+                        PG_DATABASE: eneo
+                        PG_HOST: eneo_db
+        db:
+                image: postgres
+                restart: always
+                hostname: eneo_db
+                volumes:
+                        - eneo-data:/var/lib/postgresql/data
+                        - ./sql:/docker-entrypoint-initdb.d
+                environment:
+                        POSTGRES_PASSWORD: password
+                        POSTGRES_USER: eneo
+                        POSTGRES_DB: eneo
+        loadbalancer:
+                image: eneo_lb
+                ports:
+                        - "8081:80"
+                depends_on:
+                        - eneo
+                        - db
+
+volumes:
+        eneo-data:

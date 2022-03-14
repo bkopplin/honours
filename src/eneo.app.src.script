@@ -8,9 +8,12 @@
     stdlib,
     cowboy,
     jiffy,
-    epgsql
+    epgsql,
+	ibrowse
    ]},
-  {env,[]},
+  {env,[
+	{pg_password, "password"}
+  ]},
   {modules, []},
 
   {licenses, ["Apache 2.0"]},

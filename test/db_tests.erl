@@ -37,8 +37,9 @@ insert_message_test_() ->
 		 {"insert two messages with different txdId's",
 		 	?setup(fun insert_message_different_txdid/1)},
 		 {"insert two messages with same txdId's",
-		 	?setup(fun insert_message_same_txdid/1)}
+			?setup(fun insert_message_same_txdid/1)}
 		].
+
 
 %% ---------------------
 %% Test Setup functions

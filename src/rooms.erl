@@ -85,6 +85,10 @@ handle_request(<<"PUT">>, send_message, Req0) ->
 %% Helper functions
 %% --------------------
 
+%% @doc Reads the entire http body of a cowboy request object and returns the
+%% body as an erlang map. Throws {invalid_json, Req} if the http body is invalid
+%% json.
+-spec parse_body(Req0 :: cowboy:req()) -> {ok, binary(), cowboy:req()}.
 parse_body(Req0) ->
 	{Body, Req} = read_entire_body(Req0),
 	try jiffy:decode(Body, [return_maps]) of
@@ -93,6 +97,8 @@ parse_body(Req0) ->
 		_:_:_ -> throw({invalid_json, Req})
 	end.
 
+%% @doc takes a cowboy:req() object and returns the entire body of that object
+-spec read_entire_body(Req0 :: cowboy:req()) -> {binary(), cowboy:req()}.
 read_entire_body(Req0) ->
 	case cowboy_req:read_body(Req0) of
 		{ok, Data, Req1} -> {Data, Req1};

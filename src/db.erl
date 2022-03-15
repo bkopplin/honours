@@ -7,7 +7,7 @@
 
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
--export([get_event/2, get_messages/2]).
+-export([get_event/2, get_messages/2, send_message/4]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -52,6 +52,11 @@ get_event(RoomId, EventId) ->
 get_messages(RoomId, Qs) ->
 	gen_server:call(?MODULE, {get_messages, RoomId, Qs}).
 
+%% @doc sends a message
+
+-spec send_message(Message :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
+send_message(Message, RoomId, Sender, TxdId) ->
+	gen_server:call(?MODULE, {send_message, Message, RoomId, Sender, TxdId}).
 %%% 
 %%% gen_server Module callback functions
 %%%
@@ -74,7 +79,10 @@ handle_call({get_event, RoomId, EventId}, _From, C) ->
 
 handle_call({get_messages, RoomId, Qs}, _From, C) ->
 	Limit = maps:get(limit, Qs),
-	{reply, select_messages(C, RoomId, Limit), C}.
+	{reply, select_messages(C, RoomId, Limit), C};
+
+handle_call({send_message, Message, RoomId, Sender, TxdId}, _From, C) -> 
+	{reply, insert_message(C, Message, RoomId, Sender, TxdId), C}.
 
 handle_cast(_, C) ->
 		{noreply, C}.
@@ -145,15 +153,15 @@ zip_col_row([], []) ->
 %% @doc Inserts a m.room.message event into the Event table.
 -spec insert_message(C :: epgsql:connection(), Body :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
 
-insert_message(C, Body, RoomId, Sender, TxdId) ->
+%TODO transform Message to appropriate JSON
+
+insert_message(C, Message, RoomId, Sender, _TxdId) ->
 	case epgsql:equery(C, "SELECT depth FROM events WHERE room_id=$1 ORDER BY depth DESC LIMIT 1;", [RoomId]) of
 		{ok,[#column{name = <<"depth">>}],[{LastDepth}]} ->
 					Depth = LastDepth + 10,
 					{ok, 1, _, [{Eid}]} = epgsql:equery(C, 
 									"INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.message', '{}', ' ', $5) returning event_id;", 
-									[Body, os:system_time(microsecond), RoomId, Sender, Depth]),
+									[Message, os:system_time(microsecond), RoomId, Sender, Depth]),
 					{ok, Eid}; 
 		{ok,_,[]} -> {error, unknown_room}
 	end.
-
-foo2() -> bar.

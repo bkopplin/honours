@@ -56,30 +56,41 @@ handle_request(<<"GET">>, messages, Req) ->
 		{error, _} -> reply(404, #{<<"error">> => <<"error while querying the database, no events returned">>}, Req)
 	end;
 
-handle_request(<<"PUT">>, send_message, Req) ->
-	RoomId = cowboy_req:binding(roomId, Req),
-	Sender = <<"@clyde:localhost">>,
-	case parse_body(Req) of
-		{ok, Body, Req1} -> 
-			case maps:get(<<"body">>, Body) of
-				{badkey, Key} -> reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req);
-				Message ->
-					case maps:get(<<"msgtype">>, Body) of
-						{badkey, Key} -> reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req);
-						<<"m.rooms.message">> ->
-							case db:send_message(Message, RoomId, Sender, TxnId) of
-								{ok, EventId} -> reply(200, #{<<"event_id">> => EventId}, Req);
-								{error, unknown_room} -> reply(403, #{<<"errcode">> => <<"M_FORBIDDEN">>, <<"error">> => <<"Unknown room">>}, Req)
-							end 
-					end
-			end;
-		{error, invalid_json, Req1} ->
-			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req1)
+handle_request(<<"PUT">>, send_message, Req0) ->
+	try
+		RoomId = cowboy_req:binding(roomId, Req0),
+		TxnId = cowboy_req:binding(txnId, Req0),
+		Sender = <<"@clyde:localhost">>,
+		{ok, Body, Req} = parse_body(Req0),
+		Message = get_value(<<"body">>, Body),
+		MsgType = get_value(<<"msgtype">>, Body),
+		ok
+	of
+		ok ->
+			case db:send_message(Message, RoomId, Sender, TxnId) of
+				{ok, EventId} -> 
+					reply(200, #{<<"event_id">> => EventId}, Req);
+				{error, unknown_room} -> 
+					reply_error(403, <<"M_FORBIDDEN">>, <<"Unknown room">>, Req)
+			end 
+	catch
+		throw:{invalid_json, Req1}:_ ->
+			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req1);
+		throw:{badkey, Key}:_ ->
+			reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req0)
 	end.
+
 
 %% --------------------
 %% Helper functions
 %% --------------------
+
+get_value(Key, Map) ->
+	try maps:get(Key, Map) of
+		Value -> Value
+	catch
+		error:{badkey, Key}:_ -> throw({badkey, Key})
+	end.
 
 parse_body(Req0) ->
 	{Body, Req} = read_entire_body(Req0),
@@ -87,7 +98,7 @@ parse_body(Req0) ->
 	try jiffy:decode(Body, [return_maps]) of
 		Body1 -> {ok, Body1, Req}
 	catch
-		error:_:_ -> {error, invalid_json, Req}
+		_:_:_ -> throw({invalid_json, Req})
 	end.
 
 read_entire_body(Req0) ->

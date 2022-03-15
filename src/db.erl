@@ -153,15 +153,14 @@ zip_col_row([], []) ->
 %% @doc Inserts a m.room.message event into the Event table.
 -spec insert_message(C :: epgsql:connection(), Body :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
 
-%TODO transform Message to appropriate JSON
-
 insert_message(C, Message, RoomId, Sender, _TxdId) ->
 	case epgsql:equery(C, "SELECT depth FROM events WHERE room_id=$1 ORDER BY depth DESC LIMIT 1;", [RoomId]) of
 		{ok,[#column{name = <<"depth">>}],[{LastDepth}]} ->
 					Depth = LastDepth + 10,
+					Body = jiffy:encode(#{msgtype => <<"m.text">>, body => Message}),
 					{ok, 1, _, [{Eid}]} = epgsql:equery(C, 
 									"INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.message', '{}', ' ', $5) returning event_id;", 
-									[Message, os:system_time(microsecond), RoomId, Sender, Depth]),
+									[Body, os:system_time(microsecond), RoomId, Sender, Depth]),
 					{ok, Eid}; 
 		{ok,_,[]} -> {error, unknown_room}
 	end.

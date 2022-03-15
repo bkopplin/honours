@@ -54,6 +54,57 @@ handle_request(<<"GET">>, messages, Req) ->
 	case db:get_messages(RoomId, Qs) of
 		{ok, Events} -> reply(200, Events, Req);
 		{error, _} -> reply(404, #{<<"error">> => <<"error while querying the database, no events returned">>}, Req)
+	end;
+
+handle_request(<<"PUT">>, send_message, Req0) ->
+	try
+		RoomId = cowboy_req:binding(roomId, Req0),
+		TxnId = cowboy_req:binding(txnId, Req0),
+		Sender = <<"@clyde:localhost">>,
+		{ok, Body, Req} = parse_body(Req0),
+		Message = maps:get(<<"body">>, Body),
+		MsgType = maps:get(<<"msgtype">>, Body),
+		ok
+	of
+		ok ->
+			case db:send_message(Message, RoomId, Sender, TxnId) of
+				{ok, EventId} -> 
+					reply(200, #{<<"event_id">> => EventId}, Req);
+				{error, unknown_room} -> 
+					reply_error(403, <<"M_FORBIDDEN">>, <<"Unknown room">>, Req)
+			end 
+	catch
+		throw:{invalid_json, Req1}:_ ->
+			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req1);
+		error:{badkey, Key}:_ ->
+			reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req0)
+	end.
+
+
+%% --------------------
+%% Helper functions
+%% --------------------
+
+%% @doc Reads the entire http body of a cowboy request object and returns the
+%% body as an erlang map. Throws {invalid_json, Req} if the http body is invalid
+%% json.
+-spec parse_body(Req0 :: cowboy:req()) -> {ok, binary(), cowboy:req()}.
+parse_body(Req0) ->
+	{Body, Req} = read_entire_body(Req0),
+	try jiffy:decode(Body, [return_maps]) of
+		Body1 -> {ok, Body1, Req}
+	catch
+		_:_:_ -> throw({invalid_json, Req})
+	end.
+
+%% @doc takes a cowboy:req() object and returns the entire body of that object
+-spec read_entire_body(Req0 :: cowboy:req()) -> {binary(), cowboy:req()}.
+read_entire_body(Req0) ->
+	case cowboy_req:read_body(Req0) of
+		{ok, Data, Req1} -> {Data, Req1};
+		{more, Data, Req1} -> 
+					{B, Req2} = read_entire_body(Req1),
+					{<<Data/binary, B/binary>>, Req2}
 	end.
 
 %% @doc Sends a reply back to the client.
@@ -62,3 +113,6 @@ handle_request(<<"GET">>, messages, Req) ->
 reply(ResponseCode, Data, Req) ->
 	cowboy_req:reply(ResponseCode, #{<<"content-type">> => <<"application/json">>},
 			 jiffy:encode(Data), Req).
+
+reply_error(ResCode, Errcode, Error, Req) ->
+	reply(ResCode, #{<<"errcode">> => Errcode, <<"error">> => Error}, Req).

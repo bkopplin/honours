@@ -18,7 +18,8 @@ start(_StartType, _StartArgs) ->
 			{"/login", eneo_auth, [login]},
 			%% room participation
 			{"/rooms/:roomId/messages", rooms, [messages]},
-			{"/rooms/:roomId/event/:eventId", rooms, [event]}
+			{"/rooms/:roomId/event/:eventId", rooms, [event]},
+			{"/rooms/:roomId/send/:eventType/:txnid", rooms, [send_message]}
 	      	]}
 	]),
 	{ok, _} = cowboy:start_clear(http, [

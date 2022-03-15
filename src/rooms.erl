@@ -54,6 +54,48 @@ handle_request(<<"GET">>, messages, Req) ->
 	case db:get_messages(RoomId, Qs) of
 		{ok, Events} -> reply(200, Events, Req);
 		{error, _} -> reply(404, #{<<"error">> => <<"error while querying the database, no events returned">>}, Req)
+	end;
+
+handle_request(<<"PUT">>, send_message, Req) ->
+	RoomId = cowboy_req:binding(roomId, Req),
+	Sender = <<"@clyde:localhost">>,
+	case parse_body(Req) of
+		{ok, Body, Req1} -> 
+			case maps:get(<<"body">>, Body) of
+				{badkey, Key} -> reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req);
+				Message ->
+					case maps:get(<<"msgtype">>, Body) of
+						{badkey, Key} -> reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req);
+						<<"m.rooms.message">> ->
+							case db:send_message(Message, RoomId, Sender, TxnId) of
+								{ok, EventId} -> reply(200, #{<<"event_id">> => EventId}, Req);
+								{error, unknown_room} -> reply(403, #{<<"errcode">> => <<"M_FORBIDDEN">>, <<"error">> => <<"Unknown room">>}, Req)
+							end 
+					end
+			end;
+		{error, invalid_json, Req1} ->
+			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req1)
+	end.
+
+%% --------------------
+%% Helper functions
+%% --------------------
+
+parse_body(Req0) ->
+	{Body, Req} = read_entire_body(Req0),
+	io:format("Body: ~p~n", [Body]),
+	try jiffy:decode(Body, [return_maps]) of
+		Body1 -> {ok, Body1, Req}
+	catch
+		error:_:_ -> {error, invalid_json, Req}
+	end.
+
+read_entire_body(Req0) ->
+	case cowboy_req:read_body(Req0) of
+		{ok, Data, Req1} -> {Data, Req1};
+		{more, Data, Req1} -> 
+					{B, Req2} = read_entire_body(Req1),
+					{<<Data/binary, B/binary>>, Req2}
 	end.
 
 %% @doc Sends a reply back to the client.
@@ -62,3 +104,6 @@ handle_request(<<"GET">>, messages, Req) ->
 reply(ResponseCode, Data, Req) ->
 	cowboy_req:reply(ResponseCode, #{<<"content-type">> => <<"application/json">>},
 			 jiffy:encode(Data), Req).
+
+reply_error(ResCode, Errcode, Error, Req) ->
+	reply(ResCode, #{<<"errcode">> => Errcode, <<"error">> => Error}, Req).

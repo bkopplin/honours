@@ -62,8 +62,8 @@ handle_request(<<"PUT">>, send_message, Req0) ->
 		TxnId = cowboy_req:binding(txnId, Req0),
 		Sender = <<"@clyde:localhost">>,
 		{ok, Body, Req} = parse_body(Req0),
-		Message = get_value(<<"body">>, Body),
-		MsgType = get_value(<<"msgtype">>, Body),
+		Message = maps:get(<<"body">>, Body),
+		MsgType = maps:get(<<"msgtype">>, Body),
 		ok
 	of
 		ok ->
@@ -76,7 +76,7 @@ handle_request(<<"PUT">>, send_message, Req0) ->
 	catch
 		throw:{invalid_json, Req1}:_ ->
 			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req1);
-		throw:{badkey, Key}:_ ->
+		error:{badkey, Key}:_ ->
 			reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req0)
 	end.
 
@@ -85,16 +85,8 @@ handle_request(<<"PUT">>, send_message, Req0) ->
 %% Helper functions
 %% --------------------
 
-get_value(Key, Map) ->
-	try maps:get(Key, Map) of
-		Value -> Value
-	catch
-		error:{badkey, Key}:_ -> throw({badkey, Key})
-	end.
-
 parse_body(Req0) ->
 	{Body, Req} = read_entire_body(Req0),
-	io:format("Body: ~p~n", [Body]),
 	try jiffy:decode(Body, [return_maps]) of
 		Body1 -> {ok, Body1, Req}
 	catch

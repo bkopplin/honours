@@ -76,7 +76,7 @@ test_send_message_correct(C) ->
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
 	},
-	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], get, jiffy:encode(ReqBody)),
+	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, jiffy:encode(ReqBody)),
 	?debugFmt("Body: ~p", [Body]),
 	[
 	 ?_assertMatch({ok, _, [{<<"1">>}]}, epgsql:squery(C, "SELECT COUNT(event_id) FROM events;")),
@@ -85,14 +85,14 @@ test_send_message_correct(C) ->
 	].
 
 test_send_message_nonexisting_room(C) ->
-	{"send message to nonexisting room", 
+	{"send a message to a nonexisting room", 
 	 ?_assertMatch(
 	    {ok, "403", _, #{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Unknown room">> }},
 		send_put("/rooms/~s/send/m.room.message/~saccess_token=~s", [<<"!invalid:room">>, "1", ?TOKEN1])
 	  )}.
 
 test_send_message_missing_body(C) ->
-	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], get, []),
+	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, []),
 	[
 	 ?_assertMatch("403", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_NOT_JSON">>, <<"error">> := <<"Content not JSON.">>}, Body)

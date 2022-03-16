@@ -53,7 +53,8 @@ send_message_test_() ->
 		   ?setup(fun eunit3/1),
 		   ?setup(fun test_send_message_correct/1),
 		   ?setup(fun test_send_message_nonexisting_room/1),
-		   ?setup(fun test_send_message_missing_body/1)
+		   ?setup(fun test_send_message_missing_body/1),
+		   ?setup(fun test_send_message_content_field_missing/1)
 		 ]
 		}.
 
@@ -72,31 +73,48 @@ eunit3(C) ->
 %%% ------------------
 
 test_send_message_correct(C) ->
+	db:insert_create_event(C, <<"@tom:localhost">>, ?ROOM1),
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
 	},
-	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, jiffy:encode(ReqBody)),
-	?debugFmt("Body: ~p", [Body]),
+	{ok, Status, _, Body} = 
+		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", 
+				  [?ROOM1, "1", ?TOKEN1], put, ReqBody),
 	[
-	 ?_assertMatch({ok, _, [{<<"1">>}]}, epgsql:squery(C, "SELECT COUNT(event_id) FROM events;")),
+	 ?_assertMatch(
+		{ok, _, [{<<"2">>}]}, 
+		epgsql:squery(C, "SELECT COUNT(event_id) FROM events;")
+	   ),
 	 ?_assertMatch("200", Status),
-	 ?_assertMatch(true, maps:is_key("event_id", Body))
+	 ?_assertMatch(true, maps:is_key(<<"event_id">>, Body))
 	].
 
 test_send_message_nonexisting_room(C) ->
+	ReqBody =  #{
+       <<"body">> => <<"bar">>,
+       <<"msgtype">> => <<"m.text">>
+	},
 	{"send a message to a nonexisting room", 
 	 ?_assertMatch(
 	    {ok, "403", _, #{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Unknown room">> }},
-		send_put("/rooms/~s/send/m.room.message/~saccess_token=~s", [<<"!invalid:room">>, "1", ?TOKEN1])
+		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [<<"!invalid:room">>, "1", ?TOKEN1], put, ReqBody)
 	  )}.
 
 test_send_message_missing_body(C) ->
 	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, []),
 	[
-	 ?_assertMatch("403", Status),
+	 ?_assertMatch("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_NOT_JSON">>, <<"error">> := <<"Content not JSON.">>}, Body)
 	].
+
+test_send_message_content_field_missing(C) ->
+	ReqBody =  #{
+       <<"body">> => <<"bar">>
+	},
+	?_assertMatch(
+		{ok, "400", _, #{<<"errcode">> := <<"M_UNKNOWN">>}},
+		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, ReqBody)).
 
 %%% ------------------------
 %%% Internal Helper Functions
@@ -106,7 +124,8 @@ send_get(Url, Args) -> send_http(Url, Args, get, []).
 send_post(Url, Args) -> send_http(Url, Args, post, []).
 send_put(Url, Args) -> send_http(Url, Args, put, []).
 
-send_http(Url, Args, Method, Body) ->
+send_http(Url, Args, Method, Body0) ->
+		Body = jiffy:encode(Body0),
 		case ibrowse:send_req(baseurl() ++ io_lib:format(Url, Args), [], Method, Body) of
 				{ok, Status, ResponseHeaders, []} ->
 						{ok, Status, ResponseHeaders, []};

@@ -12,6 +12,8 @@
 		F 
 		}).
 
+-define(CONTENT(Key, Value), jiffy:encode(#{Key => Value})).
+
 
 %% -------------------
 %% Test Descriptions
@@ -46,14 +48,12 @@ insert_message_test_() ->
 %% ---------------------
 
 test_start() ->
-		?debugMsg("setup database"),
 		{ok, C} = epgsql:connect(#{host => "localhost",
 								  username => "bjarne",
 								  password => "password",
 								  database => "eneo-test"}),
 		 {ok, Sql} = file:read_file(code:priv_dir(eneo) ++ "/sql/init.sql"),
-		 A = epgsql:squery(C, Sql),
-		 ?debugFmt("A: ~p", [A]),
+		 epgsql:squery(C, Sql),
 		 C.
 
 test_stop(C) ->
@@ -83,25 +83,23 @@ empty_database(C) ->
 insert_message_into_room(C) ->
 	?debugMsg("insert_message_into_room"),
 	mock_create_event(C),
-	InsertResult = insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
-	Events = epgsql:equery(C, "SELECT content FROM events WHERE type='m.room.message';"),
-	?_assertMatch({ok, _, [{<<"{}">>}]}, Events).
+	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
+	Events = epgsql:squery(C, "SELECT COUNT(event_id) FROM events WHERE type='m.room.message';"),
+	?_assertMatch({ok, _, [{<<"1">>}]}, Events).
 
 insert_message_nonexisting_room(C) ->
 	?_assertMatch({error, unknown_room}, insert_message(C, <<"foo">>, "!notexisting:localhost", "@tom:localhost", "txd1")).
 
 insert_message_different_txdid(C) ->
 	mock_create_event(C),
-	Content1 = <<"{\"foo\":1}">>,
-	Content2 = <<"{\"bar\":2}">>,
-	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
-	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd2"),
+	insert_message(C, ?CONTENT(foo, <<"bar">>), "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, ?CONTENT(hello, <<"world">>), "!test:localhost", "@tom:localhost", "txd2"),
 	?_assertMatch({ok, _, [{<<"2">>}]} , epgsql:squery(C, "SELECT COUNT(event_id) FROM events WHERE type = 'm.room.message';")).
 
 insert_message_same_txdid(C) ->
 	mock_create_event(C),
-	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
-	insert_message(C, <<"{}">>, "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, ?CONTENT(foo, <<"bar">>), "!test:localhost", "@tom:localhost", "txd1"),
+	insert_message(C, ?CONTENT(hello, <<"world">>), "!test:localhost", "@tom:localhost", "txd1"),
 	?_assertMatch({ok, _, [{<<"1">>}]} , epgsql:squery(C, "SELECT COUNT(event_id) FROM events WHERE type = 'm.room.message';")).
 
 %% @doc Generates an epgsql column for testing purposes.
@@ -120,3 +118,4 @@ generate_column(Name, Type) ->
 
 mock_create_event(C) ->
 	epgsql:equery(C, "INSERT INTO Events (content, event_id, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ('{\"creator\": \"@tom:localhost\",\"room_version\": \"6\"}', '0', 1635938428328, '!test:localhost', '@tom:localhost', 'm.room.create', '{\"age\": 7773042179}', '', 1);").
+

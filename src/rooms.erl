@@ -77,7 +77,10 @@ handle_request(<<"PUT">>, send_message, Req0) ->
 		throw:{invalid_json, Req1}:_ ->
 			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req1);
 		error:{badkey, Key}:_ ->
-			reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req0)
+			reply_error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req0);
+		error:{badmap, _}:_ ->
+			reply_error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req0)
+
 	end.
 
 

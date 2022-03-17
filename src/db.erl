@@ -164,3 +164,13 @@ insert_message(C, Message, RoomId, Sender, _TxdId) ->
 					{ok, Eid}; 
 		{ok,_,[]} -> {error, unknown_room}
 	end.
+
+insert_create_event(C, Creator, RoomId) ->
+	Ts = os:system_time(microsecond),
+	Content = jiffy:encode(#{creator => Creator, room_version => <<"6">>}),
+	Unsigned = jiffy:encode(#{age => Ts}),
+	case epgsql:equery(C, "INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.create', $5, ' ', 1);",
+				  [Content, Ts, RoomId, Creator, Unsigned]) of
+			{ok, 1} ->
+					ok
+	end.

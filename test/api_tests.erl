@@ -169,8 +169,10 @@ test_invalid_password(_C) ->
 %%% Supported Login Types
 %%% -----------------------
 test_successful_supported_login(_C) ->
+	{ok, Status, _, ReplyBody} = send_http("/login", [], get),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("200", Status),
+	 ?_assertEqual(#{<<"flows">> => [#{<<"type">> => <<"m.login.password">>}]}, ReplyBody)
 	].
 %%% ---------------
 %%% Whoami
@@ -195,6 +197,9 @@ t_whoami_invalid_token(_C) ->
 send_get(Url, Args) -> send_http(Url, Args, get, []).
 send_post(Url, Args) -> send_http(Url, Args, post, []).
 send_put(Url, Args) -> send_http(Url, Args, put, []).
+
+send_http(Url, Args, Method) ->
+	send_http(Url, Args, Method, []).
 
 send_http(Url, Args, Method, Body0) ->
 		Body = jiffy:encode(Body0),

@@ -26,14 +26,11 @@ handle(<<"GET">>, whoami, Req) ->
 	end;
 
 handle(<<"GET">>, login, Req) ->
-	SupportedLogins = [
-			   <<"{'flows': [">>,
-			   <<"{'type': 'm.login.password'}">>,
-			   <<"]}">>
-			  ],
-	cowboy_req:reply(200, #{
-	  <<"content-type">> => <<"application/json">>
-	 }, SupportedLogins, Req);
+	SupportedLogins = #{<<"flows">> => [
+										 #{<<"type">> => <<"m.login.password">>}
+										]
+						},
+	eneo_http:reply(200, SupportedLogins, Req);
 
 handle(<<"POST">>, login, Req1) ->
 	{ok, Body, Req} = cowboy_req:read_body(Req1), %% TODO consider {more, data}
@@ -69,9 +66,6 @@ handle(<<"POST">>, login, Req1) ->
 	cowboy_req:reply(200, #{
 	  <<"content-type">> => <<"text/json">>
 	 }, ReplyJSON, Req);
-
-handle(<<"GET">>, logging, Req) ->
-	cowboy_req:reply(200, Req);
 
 handle(_, _, Req) ->
 	cowboy_req:reply(200, #{}, "not implemented",  Req).

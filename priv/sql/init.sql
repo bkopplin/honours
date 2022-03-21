@@ -11,3 +11,10 @@ CREATE TABLE IF NOT EXISTS Events (
 	prev_content jsonb DEFAULT NULL, -- potentially being used in unsigned field
 	depth INT NOT NULL 
 );
+
+DROP TABLE IF EXISTS Users;
+CREATE TABLE IF NOT EXISTS Users (
+	user_id text UNIQUE,
+	is_guest BOOLEAN NOT NULL,
+	password text NOT NULL
+);

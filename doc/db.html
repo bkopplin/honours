@@ -12,11 +12,16 @@
 <h1>Module db</h1>
 <ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>The module provides an API for database queries.
 
+<p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
 
 <h2><a name="description">Description</a></h2>The module provides an API for database queries.
   For the time being, this module has no support for concurrency.
   At a later stage, it is expected to make use of OTP patterns.
 <h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-event">event()</a></h3>
+<p><tt>event() = #{binary() =&gt; any()}</tt></p>
+
 
 <h3 class="typedecl"><a name="type-event_id">event_id()</a></h3>
 <p><tt>event_id() = string() | binary()</tt></p>
@@ -30,25 +35,27 @@
 <p><tt>room_id() = string() | binary()</tt></p>
 
 
+<h3 class="typedecl"><a name="type-table">table()</a></h3>
+<p><tt>table() = [#{binary() =&gt; any()}]</tt></p>
+
+
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#connect-0">connect/0</a></td><td>Connects to a local hardcoded database on the developers machine.</td></tr>
-<tr><td valign="top"><a href="#get_event-2">get_event/2</a></td><td>Gets a single event.</td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#get_event-2">get_event/2</a></td><td>Gets a single event.</td></tr>
 <tr><td valign="top"><a href="#get_messages-2">get_messages/2</a></td><td>Get a list of messages from a room.</td></tr>
+<tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#send_message-4">send_message/4</a></td><td>sends a message.</td></tr>
+<tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
-<h3 class="function"><a name="connect-0">connect/0</a></h3>
-<div class="spec">
-<p><tt>connect() -&gt; {ok, <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql.html#type-connection">epgsql:connection()</a>} | {error, <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql.html#type-connect_error">epgsql:connect_error()</a>}</tt><br></p>
-<p> </p>
-</div><p>Connects to a local hardcoded database on the developers machine.
-  This function will either be removed in a future releae or the parameters will
-  be loaded from file.</p>
-
 <h3 class="function"><a name="get_event-2">get_event/2</a></h3>
 <div class="spec">
-<p><tt>get_event(RoomId::<a href="#type-room_id">room_id()</a>, EventId::<a href="#type-event_id">event_id()</a>) -&gt; {ok, any()} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
+<p><tt>get_event(RoomId::<a href="#type-room_id">room_id()</a>, EventId::<a href="#type-event_id">event_id()</a>) -&gt; {ok, <a href="#type-event">event()</a>} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
 <p> </p>
 </div><p>Gets a single event.
   EventId and RoomId refer to the event's identification and room.
@@ -57,11 +64,53 @@
 
 <h3 class="function"><a name="get_messages-2">get_messages/2</a></h3>
 <div class="spec">
-<p><tt>get_messages(RoomId::<a href="#type-room_id">room_id()</a>, Qs::<a href="#type-qs">qs()</a>) -&gt; {ok, any()} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
+<p><tt>get_messages(RoomId::<a href="#type-room_id">room_id()</a>, Qs::<a href="#type-qs">qs()</a>) -&gt; {ok, <a href="#type-table">table()</a>} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
 <p> </p>
 </div><p>Get a list of messages from a room.
   RoomId is the id of the room to get the messages from.
   Qs is the Query string</p>
+
+<h3 class="function"><a name="handle_call-3">handle_call/3</a></h3>
+<div class="spec">
+<p><tt>handle_call(X1, From, C) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="handle_cast-2">handle_cast/2</a></h3>
+<div class="spec">
+<p><tt>handle_cast(X1, C) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="init-1">init/1</a></h3>
+<div class="spec">
+<p><tt>init(DbConfig) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="send_message-4">send_message/4</a></h3>
+<div class="spec">
+<p><tt>send_message(Message::binary(), RoomId::binary(), Sender::binary(), TxdId::binary()) -&gt; {ok, binary()} | {error, unknown_room}</tt><br></p>
+<p> </p>
+</div><p>sends a message</p>
+
+<h3 class="function"><a name="start_link-1">start_link/1</a></h3>
+<div class="spec">
+<p><tt>start_link(DbConfig) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="stop-0">stop/0</a></h3>
+<div class="spec">
+<p><tt>stop() -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="terminate-2">terminate/2</a></h3>
+<div class="spec">
+<p><tt>terminate(Reason, C) -&gt; any()</tt></p>
+<p> </p>
+</div>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

@@ -48,13 +48,32 @@ mock_create_event(C) ->
 send_message_test_() ->
 		{setup, fun setup_all/0, fun cleanup_all/1,
 		 [
+		  % eunit tests
 		   ?setup(fun eunit1/1),
 		   ?setup(fun eunit2/1),
 		   ?setup(fun eunit3/1),
+		   
+		   % send messages
 		   ?setup(fun test_send_message_correct/1),
 		   ?setup(fun test_send_message_nonexisting_room/1),
 		   ?setup(fun test_send_message_missing_body/1),
-		   ?setup(fun test_send_message_content_field_missing/1)
+		   ?setup(fun test_send_message_content_field_missing/1),
+
+		   % log in
+		   ?setup(fun test_successful_login/1),
+		   ?setup(fun test_missing_type_key/1),
+		   ?setup(fun test_unknown_login_type/1),
+		   ?setup(fun test_unkown_identifier_type/1),
+		   ?setup(fun test_user_not_provided/1),
+		   ?setup(fun test_invalid_password/1),
+
+		   % supported login types
+		   ?setup(fun test_successful_supported_login/1),
+
+		   % whoami
+		   ?setup(fun t_whoami_successful/1),
+		   ?setup(fun t_whoami_missing_token/1),
+		   ?setup(fun t_whoami_invalid_token/1)
 		 ]
 		}.
 
@@ -116,6 +135,59 @@ test_send_message_content_field_missing(C) ->
 		{ok, "400", _, #{<<"errcode">> := <<"M_UNKNOWN">>}},
 		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, ReqBody)).
 
+%%% ------------
+%%% Log in
+%%% ------------
+
+
+test_successful_login(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+test_missing_type_key(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+test_unknown_login_type(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+test_unkown_identifier_type(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+test_user_not_provided(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+test_invalid_password(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+
+%%% -----------------------
+%%% Supported Login Types
+%%% -----------------------
+test_successful_supported_login(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+%%% ---------------
+%%% Whoami
+%%% --------------
+
+t_whoami_successful(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+t_whoami_missing_token(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
+t_whoami_invalid_token(_C) ->
+	[
+	 ?_assertEqual(1,1)
+	].
 %%% ------------------------
 %%% Internal Helper Functions
 %%% -------------------------

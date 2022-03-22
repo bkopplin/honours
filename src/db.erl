@@ -174,3 +174,14 @@ insert_create_event(C, Creator, RoomId) ->
 			{ok, 1} ->
 					ok
 	end.
+
+-spec insert_user(C :: epgsql:connection(), UserId :: binary(), Password :: binary(), IsGuest :: boolean()) -> ok | {error, any()}.
+insert_user(C, UserId, Password, IsGuest) ->
+	HashedPass = base64:encode(crypto:hash(sha256, Password)),
+	case epgsql:equery(C,
+		"INSERT INTO Users (user_id, password, is_guest) VALUES ($1, $2, $3);",
+		[UserId, HashedPass, IsGuest]
+	) of
+		{error, {error,error,_,Msg,_,_}} -> {error, Msg};
+		{ok,1} -> ok
+	end.

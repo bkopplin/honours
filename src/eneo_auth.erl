@@ -32,7 +32,10 @@ handle(<<"GET">>, login, Req) ->
 						},
 	eneo_http:reply(200, SupportedLogins, Req);
 
-handle(<<"POST">>, login, Req1) ->
+handle(<<"POST">>, login, Req0) ->
+	eneo_http:reply(200, #{}, Req0);
+
+handle(<<"POST">>, logindis, Req1) ->
 	{ok, Body, Req} = cowboy_req:read_body(Req1), %% TODO consider {more, data}
 	JSON = jiffy:decode(Body, [return_maps]),
 

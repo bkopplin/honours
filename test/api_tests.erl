@@ -140,29 +140,99 @@ test_send_message_content_field_missing(C) ->
 %%% ------------
 
 
-test_successful_login(_C) ->
+test_successful_login(C) ->
+	db:insert_user(C, "@neo:localhost", "thematrix"),
+	ReqBody = #{
+	  <<"type">> => <<"m.login.password">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("200", Status),
+	 ?_assertEqual(<<"@neo:localhost">>, maps:get(<<"user_id">>, ResBody, "undefined")),
+	 ?_assertEqual(<<"localhost">>, maps:get(<<"home_server">>, ResBody, "undefined")),
+	 ?_assert(maps:is_key(<<"access_token">>, ResBody))
 	].
 test_missing_type_key(_C) ->
+	ReqBody = #{
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("400", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Missing JSON keys.">>}, ResBody)
 	].
 test_unknown_login_type(_C) ->
+	ReqBody = #{
+	  <<"type">> => <<"m.login.unknown">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("400", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login type m.login.unknown">>}, ResBody)
 	].
+
 test_unkown_identifier_type(_C) ->
+	ReqBody = #{
+	  <<"type">> => <<"m.login.password">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.unknown">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("400", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login identifier type">>}, ResBody)
 	].
+
 test_user_not_provided(_C) ->
+	ReqBody = #{
+	  <<"type">> => <<"m.login.password">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("400", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"User Identifier is missing 'user' key">>}, ResBody)
 	].
+
 test_invalid_password(_C) ->
+	ReqBody = #{
+	  <<"type">> => <<"m.login.password">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"wrong">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("403", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Invalid password">>}, ResBody)
 	].
 
 %%% -----------------------
@@ -215,3 +285,4 @@ send_http(Url, Args, Method, Body0) ->
 
 baseurl() ->
 	"http://127.0.0.1:8080".
+

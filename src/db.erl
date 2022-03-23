@@ -175,6 +175,9 @@ insert_create_event(C, Creator, RoomId) ->
 					ok
 	end.
 
+insert_user(C, UserId, Password) ->
+	insert_user(C, UserId, Password, false).
+
 -spec insert_user(C :: epgsql:connection(), UserId :: binary(), Password :: binary(), IsGuest :: boolean()) -> ok | {error, any()}.
 insert_user(C, UserId, Password, IsGuest) ->
 	HashedPass = base64:encode(crypto:hash(sha256, Password)),

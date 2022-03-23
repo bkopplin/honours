@@ -248,17 +248,35 @@ t_successful_supported_login(_C) ->
 %%% Whoami
 %%% --------------
 
-t_whoami_successful(_C) ->
+t_whoami_successful(C) ->
+	db:insert_user(C, "@neo:localhost", "thematrix"),
+	ReqBodyLogin = #{
+	  <<"type">> => <<"m.login.password">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, "200", _, ResBodyLogin} = send_http("/login", [], post, ReqBodyLogin),
+	Token = maps:get(<<"access_token">>, ResBodyLogin),
+	{ok, Status, _, Body} = send_http(<<"/whoami?access_token=",Token/binary>>, [], get, []), 
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("200", Status),
+	 ?_assertMatch(#{<<"user_id">> := <<"@neo:localhost">>, <<"is_guest">> := false}, Body)
 	].
 t_whoami_missing_token(_C) ->
+	{ok, Status, _, Body} = send_http("/whoami", [], get, []), 
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("401", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_MISSING_TOKEN">>, <<"error">> := <<"Missing access token">>}, Body)
 	].
 t_whoami_invalid_token(_C) ->
+	{ok, Status, _, Body} = send_http("/whoami?access_token=a", [], get, []), 
 	[
-	 ?_assertEqual(1,1)
+	 ?_assertEqual("401", Status),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Invalid macaroon passed">>}, Body)
 	].
 %%% ------------------------
 %%% Internal Helper Functions

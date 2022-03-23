@@ -58,12 +58,12 @@ handle(<<"POST">>, login, Req0) ->
 				true ->
 					AuthObj = #{
 					  <<"user_id">> => UserId,
-					  <<"access_token">> => <<"syt_ZGV2Yms_vEGGntRjZePskAtUiUaF_1mohKk">>,
+					  <<"access_token">> => gen_access_token(),
 					  <<"home_server">> => ?HOSTNAME,
-					  <<"device_id">> => <<"YVYMCHYZDP">>,
+					  <<"device_id">> => gen_device_id(),
 					  <<"well_known">> => #{
 						  <<"m.homeserver">> => #{
-						  <<"base_url">> => <<"https://matrix-client.localhost">>
+						  <<"base_url">> => <<"https://localhost">>
 						 }
 						 }
 					 },
@@ -102,5 +102,9 @@ authenticate(User, Password) ->
 	Hash = base64:encode(crypto:hash(sha256, Password)),
 	StoredHash =:= Hash. 
 
-random_token() ->
+gen_access_token() ->
 	base64:encode(crypto:strong_rand_bytes(30)).
+
+gen_device_id() ->
+	base64:encode(crypto:strong_rand_bytes(20)).
+

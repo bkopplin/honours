@@ -54,21 +54,21 @@ send_message_test_() ->
 		   ?setup(fun eunit3/1),
 		   
 		   % send messages
-		   ?setup(fun test_send_message_correct/1),
-		   ?setup(fun test_send_message_nonexisting_room/1),
-		   ?setup(fun test_send_message_missing_body/1),
-		   ?setup(fun test_send_message_content_field_missing/1),
+		   ?setup(fun t_send_message_correct/1),
+		   ?setup(fun t_send_message_nonexisting_room/1),
+		   ?setup(fun t_send_message_missing_body/1),
+		   ?setup(fun t_send_message_content_field_missing/1),
 
 		   % log in
-		   ?setup(fun test_successful_login/1),
-		   ?setup(fun test_missing_type_key/1),
-		   ?setup(fun test_unknown_login_type/1),
-		   ?setup(fun test_unkown_identifier_type/1),
-		   ?setup(fun test_user_not_provided/1),
-		   ?setup(fun test_invalid_password/1),
+		   ?setup(fun t_login_successful/1),
+		   ?setup(fun t_login_missing_type_key/1),
+		   ?setup(fun t_login_unknown_login_type/1),
+		   ?setup(fun t_login_unkown_identifier_type/1),
+		   ?setup(fun t_login_user_not_provided/1),
+		   ?setup(fun t_login_invalid_password/1),
 
 		   % supported login types
-		   ?setup(fun test_successful_supported_login/1),
+		   ?setup(fun t_successful_supported_login/1),
 
 		   % whoami
 		   ?setup(fun t_whoami_successful/1),
@@ -91,7 +91,7 @@ eunit3(C) ->
 %%% Test functions
 %%% ------------------
 
-test_send_message_correct(C) ->
+t_send_message_correct(C) ->
 	db:insert_create_event(C, <<"@tom:localhost">>, ?ROOM1),
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
@@ -109,7 +109,7 @@ test_send_message_correct(C) ->
 	 ?_assertMatch(true, maps:is_key(<<"event_id">>, Body))
 	].
 
-test_send_message_nonexisting_room(C) ->
+t_send_message_nonexisting_room(_C) ->
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
@@ -120,14 +120,14 @@ test_send_message_nonexisting_room(C) ->
 		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [<<"!invalid:room">>, "1", ?TOKEN1], put, ReqBody)
 	  )}.
 
-test_send_message_missing_body(C) ->
+t_send_message_missing_body(_C) ->
 	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, []),
 	[
 	 ?_assertMatch("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_NOT_JSON">>, <<"error">> := <<"Content not JSON.">>}, Body)
 	].
 
-test_send_message_content_field_missing(C) ->
+t_send_message_content_field_missing(_C) ->
 	ReqBody =  #{
        <<"body">> => <<"bar">>
 	},
@@ -140,7 +140,7 @@ test_send_message_content_field_missing(C) ->
 %%% ------------
 
 
-test_successful_login(C) ->
+t_login_successful(C) ->
 	db:insert_user(C, "@neo:localhost", "thematrix"),
 	ReqBody = #{
 	  <<"type">> => <<"m.login.password">>,
@@ -158,7 +158,7 @@ test_successful_login(C) ->
 	 ?_assertEqual(<<"localhost">>, maps:get(<<"home_server">>, ResBody, "undefined")),
 	 ?_assert(maps:is_key(<<"access_token">>, ResBody))
 	].
-test_missing_type_key(_C) ->
+t_login_missing_type_key(_C) ->
 	ReqBody = #{
 	  <<"identifier">> => #{
 		  <<"type">> => <<"m.id.user">>,
@@ -172,7 +172,7 @@ test_missing_type_key(_C) ->
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Missing JSON keys.">>}, ResBody)
 	].
-test_unknown_login_type(_C) ->
+t_login_unknown_login_type(_C) ->
 	ReqBody = #{
 	  <<"type">> => <<"m.login.unknown">>,
 	  <<"identifier">> => #{
@@ -188,7 +188,7 @@ test_unknown_login_type(_C) ->
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login type m.login.unknown">>}, ResBody)
 	].
 
-test_unkown_identifier_type(_C) ->
+t_login_unkown_identifier_type(_C) ->
 	ReqBody = #{
 	  <<"type">> => <<"m.login.password">>,
 	  <<"identifier">> => #{
@@ -204,7 +204,7 @@ test_unkown_identifier_type(_C) ->
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login identifier type">>}, ResBody)
 	].
 
-test_user_not_provided(_C) ->
+t_login_user_not_provided(_C) ->
 	ReqBody = #{
 	  <<"type">> => <<"m.login.password">>,
 	  <<"identifier">> => #{
@@ -219,7 +219,7 @@ test_user_not_provided(_C) ->
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">> }, ResBody)
 	].
 
-test_invalid_password(_C) ->
+t_login_invalid_password(_C) ->
 	ReqBody = #{
 	  <<"type">> => <<"m.login.password">>,
 	  <<"identifier">> => #{
@@ -238,7 +238,7 @@ test_invalid_password(_C) ->
 %%% -----------------------
 %%% Supported Login Types
 %%% -----------------------
-test_successful_supported_login(_C) ->
+t_successful_supported_login(_C) ->
 	{ok, Status, _, ReplyBody} = send_http("/login", [], get),
 	[
 	 ?_assertEqual("200", Status),

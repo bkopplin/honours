@@ -18,3 +18,16 @@ CREATE TABLE IF NOT EXISTS Users (
 	password text NOT NULL,
 	is_guest BOOLEAN NOT NULL
 );
+
+DROP TABLE IF EXISTS Tokens;
+CREATE TABLE IF NOT EXISTS Tokens (
+	token text UNIQUE,
+	user_id text NOT NULL,
+	device_id text NOT NULL
+);
+
+DROP TABLE IF EXISTS Devices;
+CREATE TABLE IF NOT EXISTS Devices (
+	device_id text UNIQUE,
+	display_name text NOT NULL
+);

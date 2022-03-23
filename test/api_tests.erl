@@ -216,7 +216,7 @@ test_user_not_provided(_C) ->
 	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
 	[
 	 ?_assertEqual("400", Status),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"User Identifier is missing 'user' key">>}, ResBody)
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">> }, ResBody)
 	].
 
 test_invalid_password(_C) ->

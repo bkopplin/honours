@@ -200,6 +200,8 @@ password(C, UserId) ->
 	case epgsql:equery(C, "SELECT password FROM Users where user_id=$1;", [UserId]) of
 		{ok, _, [{Hash}]} ->
 			{ok, Hash};
+		{ok, _, _} ->
+			{error, nohash};
 		{error, Msg} ->
 			{error, Msg}
 	end.	

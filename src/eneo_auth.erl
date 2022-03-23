@@ -2,6 +2,10 @@
 
 -export([init/2]).
 
+-ifdef(TEST).
+-compile(export_all).
+-endif.
+
 init(Req, Opts) ->
 	Method = cowboy_req:method(Req),
 	[Action|_] = Opts,
@@ -35,8 +39,18 @@ handle(<<"POST">>, login, Req0) ->
 handle(_, _, Req) ->
 	cowboy_req:reply(200, #{}, "not implemented",  Req).
 
+%%% --------------------------
+%%% Internal Helper Functions
+%%% --------------------------
+-spec authenticate(User :: binary(), Password :: binary()) -> boolean().
 authenticate(User, Password) ->
-	ok.
+	StoredHash = case db:get_password(User) of
+		{ok, H} -> H;
+		{error, Msg} -> false
+				 end,
+	Hash = base64:encode(crypto:hash(sha256, Password)),
+	io:format("StoredHash: ~p~nHash: ~p~n", [StoredHash, Hash]),
+	StoredHash =:= Hash. 
 
 random_token() ->
 	base64:encode(crypto:strong_rand_bytes(30)).

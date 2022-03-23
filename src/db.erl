@@ -7,7 +7,7 @@
 
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
--export([get_event/2, get_messages/2, send_message/4]).
+-export([get_event/2, get_messages/2, send_message/4, get_password/1]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -57,6 +57,10 @@ get_messages(RoomId, Qs) ->
 -spec send_message(Message :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
 send_message(Message, RoomId, Sender, TxdId) ->
 	gen_server:call(?MODULE, {send_message, Message, RoomId, Sender, TxdId}).
+
+
+get_password(UserId) ->
+	gen_server:call(?MODULE, {get_password, UserId}).
 %%% 
 %%% gen_server Module callback functions
 %%%
@@ -82,7 +86,10 @@ handle_call({get_messages, RoomId, Qs}, _From, C) ->
 	{reply, select_messages(C, RoomId, Limit), C};
 
 handle_call({send_message, Message, RoomId, Sender, TxdId}, _From, C) -> 
-	{reply, insert_message(C, Message, RoomId, Sender, TxdId), C}.
+	{reply, insert_message(C, Message, RoomId, Sender, TxdId), C};
+
+handle_call({get_password, UserId}, _From, C) ->
+	{reply, password(C, UserId), C}.
 
 handle_cast(_, C) ->
 		{noreply, C}.
@@ -188,3 +195,11 @@ insert_user(C, UserId, Password, IsGuest) ->
 		{error, {error,error,_,Msg,_,_}} -> {error, Msg};
 		{ok,1} -> ok
 	end.
+
+password(C, UserId) ->
+	case epgsql:equery(C, "SELECT password FROM Users where user_id=$1;", [UserId]) of
+		{ok, _, [{Hash}]} ->
+			{ok, Hash};
+		{error, Msg} ->
+			{error, Msg}
+	end.	

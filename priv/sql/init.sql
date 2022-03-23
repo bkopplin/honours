@@ -15,6 +15,6 @@ CREATE TABLE IF NOT EXISTS Events (
 DROP TABLE IF EXISTS Users;
 CREATE TABLE IF NOT EXISTS Users (
 	user_id text UNIQUE,
-	is_guest BOOLEAN NOT NULL,
-	password text NOT NULL
+	password text NOT NULL,
+	is_guest BOOLEAN NOT NULL
 );

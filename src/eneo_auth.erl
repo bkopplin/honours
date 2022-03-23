@@ -95,3 +95,6 @@ authenticate(User, Password) ->
 		false ->
 			false
 	end.
+
+random_token() ->
+	base64:encode(crypto:strong_rand_bytes(30)).

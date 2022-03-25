@@ -34,3 +34,4 @@ reply(ResponseCode, Data, Req) ->
 
 error(ResCode, Errcode, Error, Req) ->
 	reply(ResCode, #{<<"errcode">> => Errcode, <<"error">> => Error}, Req).
+

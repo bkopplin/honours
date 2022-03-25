@@ -14,7 +14,7 @@ init(Req, Opts) ->
 	Req1 = handle(Method, Action, Req),
 	{ok, Req1, Opts}.
 
-handle(<<"GET">>, whoami, Req) ->
+handle(<<"GET">>, whoami, _Req) ->
 	done;
 
 handle(<<"GET">>, login, Req) ->
@@ -31,7 +31,7 @@ handle(<<"POST">>, login, Req0) ->
 		{ok, Body, Req1} = eneo_http:parse_body(Req0),
 		Identifier = maps:get(<<"identifier">>, Body),
 		LoginTypeTmp = maps:get(<<"type">>, Body),
-		LoginType = case lists:member(LoginTypeTmp, SupportedLoginTypes) of
+		_LoginType = case lists:member(LoginTypeTmp, SupportedLoginTypes) of
 						true ->
 							LoginTypeTmp;
 						false ->
@@ -40,7 +40,7 @@ handle(<<"POST">>, login, Req0) ->
 								  })
 					end,
 		IdentifierTypeTmp = maps:get(<<"type">>, Identifier),
-		IdentifierType = case lists:member(IdentifierTypeTmp, SupportedIdTypes) of
+		_IdentifierType = case lists:member(IdentifierTypeTmp, SupportedIdTypes) of
 							true ->
 								IdentifierTypeTmp;
 							false ->
@@ -56,18 +56,19 @@ handle(<<"POST">>, login, Req0) ->
 		ok ->
 			case authenticate(UserId, Password) of
 				true ->
+					{ok, AccessToken, DeviceId} = db:new_session(UserId, undefined),
 					AuthObj = #{
 					  <<"user_id">> => UserId,
-					  <<"access_token">> => gen_access_token(),
+					  <<"access_token">> => AccessToken,
 					  <<"home_server">> => ?HOSTNAME,
-					  <<"device_id">> => gen_device_id(),
+					  <<"device_id">> => DeviceId,
 					  <<"well_known">> => #{
 						  <<"m.homeserver">> => #{
 						  <<"base_url">> => <<"https://localhost">>
 						 }
 						 }
 					 },
-					eneo_http:reply(200, AuthObj, Req1);
+					eneo_http:reply(200, AuthObj, Req1);%
 				false ->
 					eneo_http:error(403,  <<"M_FORBIDDEN">>, <<"Invalid password">>, Req1)
 			end
@@ -97,14 +98,10 @@ handle(_, _, Req) ->
 authenticate(User, Password) ->
 	StoredHash = case db:get_password(User) of
 		{ok, H} -> H;
-		{error, Msg} -> false
+		{error, _Msg} -> false
 				 end,
 	Hash = base64:encode(crypto:hash(sha256, Password)),
 	StoredHash =:= Hash. 
 
-gen_access_token() ->
-	base64:encode(crypto:strong_rand_bytes(30)).
 
-gen_device_id() ->
-	base64:encode(crypto:strong_rand_bytes(20)).
 

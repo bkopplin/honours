@@ -19,11 +19,11 @@ CREATE TABLE IF NOT EXISTS Users (
 	is_guest BOOLEAN NOT NULL
 );
 
-DROP TABLE IF EXISTS Tokens;
-CREATE TABLE IF NOT EXISTS Tokens (
-	token text UNIQUE,
+DROP TABLE IF EXISTS Sessions;
+CREATE TABLE IF NOT EXISTS Sessions (
 	user_id text NOT NULL,
-	device_id text NOT NULL
+	token text NOT NULL,
+	device_id text NOT NULL UNIQUE
 );
 
 DROP TABLE IF EXISTS Devices;

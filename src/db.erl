@@ -7,7 +7,7 @@
 
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
--export([get_event/2, get_messages/2, send_message/4]).
+-export([get_event/2, get_messages/2, send_message/4, get_password/1, new_session/2]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -57,6 +57,20 @@ get_messages(RoomId, Qs) ->
 -spec send_message(Message :: binary(), RoomId :: binary(), Sender :: binary(), TxdId :: binary()) -> {ok, binary()} | {error, unknown_room}.
 send_message(Message, RoomId, Sender, TxdId) ->
 	gen_server:call(?MODULE, {send_message, Message, RoomId, Sender, TxdId}).
+
+
+get_password(UserId) ->
+	gen_server:call(?MODULE, {get_password, UserId}).
+
+%% @doc Starts a new session for a given UserId. If DeviceId is undefined, a
+%% new device identifier will be generated. After calling this function, all
+%% previously used access tokens assigned to the given device id will be 
+%% invalidated.
+-spec new_session(UserId :: binary(), DeviceId :: binary() | undefined) -> {ok, AccessToken :: binary(), DeviceId :: binary()}.
+new_session(UserId, DeviceId) ->
+	gen_server:call(?MODULE, {new_session, UserId, DeviceId}).
+
+
 %%% 
 %%% gen_server Module callback functions
 %%%
@@ -82,7 +96,19 @@ handle_call({get_messages, RoomId, Qs}, _From, C) ->
 	{reply, select_messages(C, RoomId, Limit), C};
 
 handle_call({send_message, Message, RoomId, Sender, TxdId}, _From, C) -> 
-	{reply, insert_message(C, Message, RoomId, Sender, TxdId), C}.
+	{reply, insert_message(C, Message, RoomId, Sender, TxdId), C};
+
+handle_call({get_password, UserId}, _From, C) ->
+	{reply, password(C, UserId), C};
+
+handle_call({new_session, UserId, DevId}, _From, C) ->
+	DeviceId = case DevId of
+				undefined -> eneo_lib:gen_device_id();
+				D -> D
+			   end,
+	Token = eneo_lib:gen_access_token(),
+	ok = insert_new_session(C, UserId, Token, DeviceId),
+	{reply, {ok, DeviceId, Token}, C}.
 
 handle_cast(_, C) ->
 		{noreply, C}.
@@ -174,3 +200,39 @@ insert_create_event(C, Creator, RoomId) ->
 			{ok, 1} ->
 					ok
 	end.
+
+insert_user(C, UserId, Password) ->
+	insert_user(C, UserId, Password, false).
+
+-spec insert_user(C :: epgsql:connection(), UserId :: binary(), Password :: binary(), IsGuest :: boolean()) -> ok | {error, any()}.
+insert_user(C, UserId, Password, IsGuest) ->
+	HashedPass = base64:encode(crypto:hash(sha256, Password)),
+	case epgsql:equery(C,
+		"INSERT INTO Users (user_id, password, is_guest) VALUES ($1, $2, $3);",
+		[UserId, HashedPass, IsGuest]
+	) of
+		{error, {error,error,_,Msg,_,_}} -> {error, Msg};
+		{ok,1} -> ok
+	end.
+
+% @doc get the password for a given userId
+password(C, UserId) ->
+	case epgsql:equery(C, "SELECT password FROM Users where user_id=$1;", [UserId]) of
+		{ok, _, [{Hash}]} ->
+			{ok, Hash};
+		{ok, _, _} ->
+			{error, nohash};
+		{error, Msg} ->
+			{error, Msg}
+	end.	
+
+%% @doc Updates Session state.
+%% If DeviceId already exists in the database, the existing access token will be
+%% invalidated. If 
+insert_new_session(C, UserId, Token, DeviceId) ->
+	case epgsql:equery(C, "INSERT INTO Sessions VALUES ($1, $2, $3) ON CONFLICT (device_id) DO UPDATE SET token = $2;",
+				  [UserId, Token, DeviceId]) of
+		{ok, 1} -> ok;
+		{error, Msg} -> {error, Msg}
+	end.
+

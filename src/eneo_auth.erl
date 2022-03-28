@@ -2,99 +2,106 @@
 
 -export([init/2]).
 
+-define(HOSTNAME, <<"localhost">>).
+
+-ifdef(TEST).
+-compile(export_all).
+-endif.
+
 init(Req, Opts) ->
 	Method = cowboy_req:method(Req),
 	[Action|_] = Opts,
 	Req1 = handle(Method, Action, Req),
 	{ok, Req1, Opts}.
 
-handle(<<"GET">>, whoami, Req) ->
-	Qs = cowboy_req:parse_qs(Req),
-	case lists:keyfind(<<"access_token">>, 1, Qs) of
-		false -> send_error(401, <<"M_MISSING_TOKEN">>, <<"Missing access token">>, Req);
-		{<<"access_token">>, T} -> Token = T,
-					   io:format("qs: ~w, token: ~s~n", [Qs, Token]),
-					   %% In a further release, look up the access token and return user_id and device_id
-					   Reply = jiffy:encode(#{
-					     <<"user_id">> => <<"@user:example.org">>,
-					     <<"device_id">> => <<"AMLCDHVEEX">>
-					    }),
-					   cowboy_req:reply(200, #{
-					     <<"content-type">> => <<"application/json">>
-					    }, Reply, Req)
-
-	end;
+handle(<<"GET">>, whoami, _Req) ->
+	done;
 
 handle(<<"GET">>, login, Req) ->
-	SupportedLogins = [
-			   <<"{'flows': [">>,
-			   <<"{'type': 'm.login.password'}">>,
-			   <<"]}">>
-			  ],
-	cowboy_req:reply(200, #{
-	  <<"content-type">> => <<"application/json">>
-	 }, SupportedLogins, Req);
+	SupportedLogins = #{<<"flows">> => [
+										 #{<<"type">> => <<"m.login.password">>}
+										]
+						},
+	eneo_http:reply(200, SupportedLogins, Req);
 
-handle(<<"POST">>, login, Req1) ->
-	{ok, Body, Req} = cowboy_req:read_body(Req1), %% TODO consider {more, data}
-	JSON = jiffy:decode(Body, [return_maps]),
+handle(<<"POST">>, login, Req0) ->
+	SupportedLoginTypes = [<<"m.login.password">>],
+	SupportedIdTypes = [<<"m.id.user">>],
+	try
+		{ok, Body, Req1} = eneo_http:parse_body(Req0),
+		Identifier = maps:get(<<"identifier">>, Body),
+		LoginTypeTmp = maps:get(<<"type">>, Body),
+		_LoginType = case lists:member(LoginTypeTmp, SupportedLoginTypes) of
+						true ->
+							LoginTypeTmp;
+						false ->
+							throw({m_unknown,
+								   <<"Unknown login type m.login.unknown">>
+								  })
+					end,
+		IdentifierTypeTmp = maps:get(<<"type">>, Identifier),
+		_IdentifierType = case lists:member(IdentifierTypeTmp, SupportedIdTypes) of
+							true ->
+								IdentifierTypeTmp;
+							false ->
+								throw({m_unknown,
+									   <<"Unknown login identifier type">>
+									  })
+						 end,
+		User = maps:get(<<"user">>, Identifier),
+		UserId = <<"@",User/binary,":",?HOSTNAME/binary>>,
+		Password = maps:get(<<"password">>, Body),
+		ok
+	of
+		ok ->
+			case authenticate(UserId, Password) of
+				true ->
+					{ok, AccessToken, DeviceId} = db:new_session(UserId, undefined),
+					AuthObj = #{
+					  <<"user_id">> => UserId,
+					  <<"access_token">> => AccessToken,
+					  <<"home_server">> => ?HOSTNAME,
+					  <<"device_id">> => DeviceId,
+					  <<"well_known">> => #{
+						  <<"m.homeserver">> => #{
+						  <<"base_url">> => <<"https://localhost">>
+						 }
+						 }
+					 },
+					eneo_http:reply(200, AuthObj, Req1);%
+				false ->
+					eneo_http:error(403,  <<"M_FORBIDDEN">>, <<"Invalid password">>, Req1)
+			end
+	catch
+		throw:{invalid_json, Req5}:_ ->
+			eneo_http:error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req5);
+		throw:{m_unknown, Msg}:_ ->
+			eneo_http:error(400, <<"M_UNKNOWN">>, Msg, Req0);
+		error:{badkey, <<"identifier">>}:_ ->
+			eneo_http:error(400, <<"M_INVALID_PARAM">>, <<"Invalid login submission">>, Req0);
+		error:{badkey, <<"type">>}:_ ->
+			eneo_http:error(400, <<"M_UNKNOWN">>, <<"Missing JSON keys.">>, Req0);
+		error:{badkey, Key}:_ ->
+			eneo_http:error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req0);
+		error:{badmap, _}:_ ->
+			eneo_http:error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req0)
+	end;
 
-	Identifier = try maps:get(<<"identifier">>, JSON)
-		     catch error:_ -> send_400(<<"M_INVALID_PARAM">>, <<"Invalid login submission">>, Req) end,
-
-	User = try maps:get(<<"user">>, Identifier)
-	       catch error:_ -> send_400(<<"M_UNKNOWN">>, <<"User identifier is missing 'user' key">>, Req) end,
-
-	Password = try maps:get(<<"password">>, JSON)
-		   catch error:_ -> send_400(<<"M_INVALID_PARAM">>, <<"Bad parameter: password">>, Req) end,
-
-	Authenticated = authenticate(User, Password),
-	case Authenticated of	
-		true -> true;
-		false -> send_error(403, <<"M_FORBIDDEN">>, <<"Invalid password">>, Req)
-	end,
-
-	AuthObj = #{
-	  <<"user_id">> => iolist_to_binary([<<"@">>, User, <<":localhost">>]),
-	  <<"access_token">> => <<"syt_ZGV2Yms_vEGGntRjZePskAtUiUaF_1mohKk">>,
-	  <<"home_server">> => <<"localhost">>,
-	  <<"device_id">> => <<"YVYMCHYZDP">>,
-	  <<"well_known">> => #{
-	      <<"m.homeserver">> => #{
-		  <<"base_url">> => <<"https://matrix-client.localhost">>
-		 }
-	     }
-	 },
-	ReplyJSON = jiffy:encode(AuthObj),
-	cowboy_req:reply(200, #{
-	  <<"content-type">> => <<"text/json">>
-	 }, ReplyJSON, Req);
-
-handle(<<"GET">>, logging, Req) ->
-	cowboy_req:reply(200, Req);
 
 handle(_, _, Req) ->
 	cowboy_req:reply(200, #{}, "not implemented",  Req).
 
-send_error(HttpErrCode, Errcode, Error, Req) ->
-	Msg = [<<"{\"errcode\": \"">>, Errcode, <<"\", \"error\": \"">>, Error, <<"\"}">>],
-	cowboy_req:reply(HttpErrCode, #{<<"content-type">> => <<"application/json">>}, Msg, Req),
-	exit(Error).
-
-send_400(Errcode, Error, Req) ->
-	Msg = [<<"{\"errcode\": \"">>, Errcode, <<"\", \"error\": \"">>, Error, <<"\"}">>],
-	cowboy_req:reply(400, #{<<"content-type">> => <<"application/json">>}, Msg, Req),
-	exit(Error).
-
+%%% --------------------------
+%%% Internal Helper Functions
+%%% --------------------------
+-spec authenticate(User :: binary(), Password :: binary()) -> boolean().
 authenticate(User, Password) ->
-	PasswordDb = #{
-	  <<"Aragon">> => <<"password">>,
-	  <<"Bilbo">> => <<"ilikereading">>
-	 },
-	case maps:is_key(User, PasswordDb) of
-		true ->
-			#{User := P} = PasswordDb,
-			Password =:= P;
-		false ->
-			false
-	end.
+	StoredHash = case db:get_password(User) of
+		{ok, H} -> H;
+		{error, _Msg} -> false
+				 end,
+	Hash = base64:encode(crypto:hash(sha256, Password)),
+	StoredHash =:= Hash. 
+
+
+

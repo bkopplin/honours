@@ -7,7 +7,7 @@
 
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
--export([get_event/2, get_messages/2, send_message/4, get_password/1, new_session/2]).
+-export([get_event/2, get_messages/2, send_message/4, get_password/1, new_session/2, validate_token/1]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -70,6 +70,11 @@ get_password(UserId) ->
 new_session(UserId, DeviceId) ->
 	gen_server:call(?MODULE, {new_session, UserId, DeviceId}).
 
+%% @doc Checks if an authentication token is valid. Returns the username
+%% associated with the access token or an error, as the case may be.
+-spec validate_token(Token :: binary()) -> {ok, binary()} | {error, invalid_token}.
+validate_token(Token) ->
+	gen_server:call(?MODULE, {validate_token, Token}).
 
 %%% 
 %%% gen_server Module callback functions
@@ -108,7 +113,16 @@ handle_call({new_session, UserId, DevId}, _From, C) ->
 			   end,
 	Token = eneo_lib:gen_access_token(),
 	ok = insert_new_session(C, UserId, Token, DeviceId),
-	{reply, {ok, DeviceId, Token}, C}.
+	{reply, {ok, DeviceId, Token}, C};
+
+handle_call({validate_token, Token}, _From, C) ->
+	case epgsql:equery(C, "SELECT user_id FROM Sessions WHERE token=$1;",
+					   [Token]) of
+		{ok, _, [{UserId}]} ->
+			{reply, {ok, UserId}, C};
+		{ok, _, _} ->
+			{reply, {error, invalid_token}, C}
+	end.
 
 handle_cast(_, C) ->
 		{noreply, C}.

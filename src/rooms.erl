@@ -36,11 +36,11 @@ handle_request(<<"GET">>, event, Req) ->
 	EventId = cowboy_req:binding(eventId, Req),
 
 	case db:get_event(RoomId, EventId) of
+		{ok, [Event|_]} -> eneo_http:reply(200, Event, Req);
 		{ok, []} -> eneo_http:reply(404, #{
 					<<"errcode">> => <<"M_NOT_FOUND">>,
-					<<"error">> => <<"Could not find event {EVENTID}">>
+					<<"error">> => <<"Could not find event ", EventId/binary>>
 				       }, Req);
-		{ok, [Event|_]} -> eneo_http:reply(200, Event, Req);
 		{error, _Reason} -> eneo_http:reply(404, #{
 				<<"errcode">> => <<"UNIMPLEMENTED">>,
 				<<"error">> => <<"unimplemented">>}, Req)

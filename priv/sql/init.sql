@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS Events;
 CREATE TABLE IF NOT EXISTS Events (
 	content jsonb NOT NULL,
-	event_id SERIAL UNIQUE,
+	event_id text UNIQUE,
 	origin_server_ts BIGINT NOT NULL ,
 	room_id text NOT NULL,
 	sender text NOT NULL,
@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS Users;
 CREATE TABLE IF NOT EXISTS Users (
 	user_id text UNIQUE,
 	password text NOT NULL,
-	is_guest BOOLEAN NOT NULL
+	is_guest BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 DROP TABLE IF EXISTS Sessions;

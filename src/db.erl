@@ -134,8 +134,8 @@ select_event(C, RoomId, EventId) ->
 	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
 		{ok, Cols, Rows} -> 
 			{ok, table_to_list(Cols, Rows)};
-		%{ok, _, []} ->
-			%{reply, {error, not_found}, C};
+		{ok, _, []} ->
+			{reply, {error, not_found}, C};
 		{error, Reason} ->
 			{error, Reason}
 	end.
@@ -184,9 +184,10 @@ insert_message(C, Message, RoomId, Sender, _TxdId) ->
 		{ok,[#column{name = <<"depth">>}],[{LastDepth}]} ->
 					Depth = LastDepth + 10,
 					Body = jiffy:encode(#{msgtype => <<"m.text">>, body => Message}),
+					EventIdHash = eneo_lib:gen_state_id(),
 					{ok, 1, _, [{Eid}]} = epgsql:equery(C, 
-									"INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.message', '{}', ' ', $5) returning event_id;", 
-									[Body, os:system_time(microsecond), RoomId, Sender, Depth]),
+									"INSERT INTO Events (event_id, content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, $5, 'm.room.message', '{}', ' ', $6) returning event_id;", 
+									[EventIdHash, Body, os:system_time(microsecond), RoomId, Sender, Depth]),
 					{ok, Eid}; 
 		{ok,_,[]} -> {error, unknown_room}
 	end.
@@ -195,8 +196,9 @@ insert_create_event(C, Creator, RoomId) ->
 	Ts = os:system_time(microsecond),
 	Content = jiffy:encode(#{creator => Creator, room_version => <<"6">>}),
 	Unsigned = jiffy:encode(#{age => Ts}),
-	case epgsql:equery(C, "INSERT INTO Events (content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, 'm.room.create', $5, ' ', 1);",
-				  [Content, Ts, RoomId, Creator, Unsigned]) of
+	EventId = eneo_lib:gen_state_id(),
+	case epgsql:equery(C, "INSERT INTO Events (event_id, content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES ($1, $2, $3, $4, $5, 'm.room.create', $6, ' ', 1);",
+				  [EventId, Content, Ts, RoomId, Creator, Unsigned]) of
 			{ok, 1} ->
 					ok
 	end.

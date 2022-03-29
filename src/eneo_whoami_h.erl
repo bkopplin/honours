@@ -29,6 +29,5 @@ content_types_provided(Req, State) ->
 	 ], Req, State}.
 
 to_json(Req, State) ->
-	io:format("WHOAMI: to_json~n"),
 	Res = #{user_id => maps:get(user_id, State)},
 	{jiffy:encode(Res), Req, State}.

@@ -20,7 +20,6 @@ authenticate_token(Req) ->
 		{error, Status, Type, Error} ->
 			{error, Status, Type, Error};
 		{ok, Token} ->
-			io:format("token ~p~n", [Token]),
 			case db:validate_token(Token) of
 				{ok, UserId} ->
 					{ok, UserId};

@@ -1,5 +1,6 @@
 DELETE FROM Events WHERE 1=1;
 DELETE FROM Users WHERE 1=1;
+DELETE FROM Sessions WHERE 1=1;
 
 -- room r0
 INSERT INTO Events (event_id, content, origin_server_ts, room_id, sender, type, unsigned, state_key, depth) VALUES
@@ -43,5 +44,8 @@ INSERT INTO Events (event_id, content, origin_server_ts, room_id, sender, type, 
 ('$MGseDmxWUzk7jOCGV0989qp47kc=', '{"name":"devbk_0"}', 1643802600941, '!r2:localhost', '@alice:localhost', 'm.room.name', '{"age":8711482,"replaces_state":"edi6","prev_content":{"name":"devbk_1"}, "prev_sender":"@alice:localhost"}', '', 81);
 
 Insert INTO Users (user_id, password) VALUES
-('!neo:localhost', 'bgDNVizC2I4jjfuB2UOd5+yEPunQyYedVJyxQ2eG+XU='), -- matrix
-('!bob:localhost', 'XohImNooBHFR0OVvjcYpJ3NgPQ1qq73WKhHvch0VQtg='); -- password
+('@neo:localhost', 'bgDNVizC2I4jjfuB2UOd5+yEPunQyYedVJyxQ2eG+XU='), -- matrix
+('@bob:localhost', 'XohImNooBHFR0OVvjcYpJ3NgPQ1qq73WKhHvch0VQtg='); -- password
+
+INSERT INTO Sessions (user_id, token, device_id) VALUES
+('neo:localhost', 'BEYGOv5es4RXPVawdJK8cLXEXgAQdDwE7Qzh35dp', 'BEYGOv5es4RXPVawdJK8cLXEXgAQdDwE7Qzh35dp');

@@ -11,8 +11,10 @@
 init(Req, Opts) ->
 	Method = cowboy_req:method(Req),
 	[Action|_] = Opts,
-	Req1 = handle(Method, Action, Req),
-	{ok, Req1, Opts}.
+	A = eneo_lib:authenticate_token(Req),
+	%io:format("A: ~p~n", [A]),
+	Req2 = handle(Method, Action, Req),
+	{ok, Req2, Opts}.
 
 handle(<<"GET">>, whoami, _Req) ->
 	done;

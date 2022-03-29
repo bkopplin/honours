@@ -32,6 +32,14 @@ reply(ResponseCode, Data, Req) ->
 	cowboy_req:reply(ResponseCode, #{<<"content-type">> => <<"application/json">>},
 			 jiffy:encode(Data), Req).
 
+%% @doc Sends an error back to the client. 
+%% Note that Errcode is specified as lowercase atom and should correspond to matrix 
+%% common error code (see @url(https://spec.matrix.org/latest/client-server-api/#common-error-codes). 
+%% For backward compatibility, Errcode can be passed as binary.
+-spec error(pos_integer(), atom(), binary(), cowboy_req:req()) -> cowboy_req:req().
+error(ResCode, Errcode, Error, Req) when is_binary(Errcode) ->
+	reply(ResCode, #{<<"errcode">> => Errcode, <<"error">> => Error}, Req);
 error(ResCode, Errcode, Error, Req) ->
-	reply(ResCode, #{<<"errcode">> => Errcode, <<"error">> => Error}, Req).
+	Ec = erlang:list_to_binary(string:to_upper(erlang:atom_to_list(Errcode))),	
+	reply(ResCode, #{<<"errcode">> => Ec, <<"error">> => Error}, Req).
 

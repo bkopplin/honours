@@ -22,7 +22,8 @@ start(_StartType, _StartArgs) ->
 			{"/rooms/:roomId/send/:eventType/:txnid", rooms, [send_message]},
 
 			%% user authentication
-			{"/account/whoami", eneo_auth, [whoami]},
+			%{"/account/whoami", eneo_auth, [whoami]},
+			{"/account/whoami", eneo_whoami_h, []},
 			{"/login", eneo_auth, [login]}
 	      	]}
 	]),

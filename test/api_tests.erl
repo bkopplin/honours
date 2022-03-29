@@ -71,9 +71,12 @@ send_message_test_() ->
 		   ?setup(fun t_successful_supported_login/1),
 
 		   % whoami
-		   ?setup(fun t_whoami_successful/1),
+		   ?setup(fun t_whoami_success_qs/1),
+		   ?setup(fun t_whoami_success_header/1),
 		   ?setup(fun t_whoami_missing_token/1),
-		   ?setup(fun t_whoami_invalid_token/1)
+		   ?setup(fun t_whoami_invalid_qs/1),
+		   ?setup(fun t_whoami_malformed_header/1),
+		   ?setup(fun t_whoami_invalid_header/1)
 		 ]
 		}.
 
@@ -248,36 +251,50 @@ t_successful_supported_login(_C) ->
 %%% Whoami
 %%% --------------
 
-t_whoami_successful(C) ->
-	db:insert_user(C, "@neo:localhost", "thematrix"),
-	ReqBodyLogin = #{
-	  <<"type">> => <<"m.login.password">>,
-	  <<"identifier">> => #{
-		  <<"type">> => <<"m.id.user">>,
-		  <<"user">> => <<"neo">>
-		 },
-	  <<"password">> => <<"thematrix">>,
-	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
-	 },
-	{ok, "200", _, ResBodyLogin} = send_http("/login", [], post, ReqBodyLogin),
-	Token = maps:get(<<"access_token">>, ResBodyLogin),
-	{ok, Status, _, Body} = send_http(<<"/whoami?access_token=",Token/binary>>, [], get, []), 
+t_whoami_success_qs(C) ->
+	Token = insert_user(C,neo),
+	{ok, RS, _, RB} = send(get, "/whoami?access_token=" ++ Token), 
 	[
-	 ?_assertEqual("200", Status),
-	 ?_assertMatch(#{<<"user_id">> := <<"@neo:localhost">>, <<"is_guest">> := false}, Body)
+	 ?_assertEqual("200", RS),
+	 ?_assertMatch(#{<<"user_id">> := <<"@neo:localhost">>, <<"is_guest">> := false}, RB)
+	].
+t_whoami_success_header(C) ->
+	Token = insert_user(C,neo),
+	H = [{"Authorization", "Bearer " ++ Token}],
+	{ok, RS, _, RB} = send(get, "/account/whoami", #{}, H),
+	[
+	 ?_assertEqual("200", RS),
+	 ?_assertMatch(#{<<"user_id">> := <<"@neo:localhost">>, <<"is_guest">> := false}, RB)
 	].
 t_whoami_missing_token(_C) ->
-	{ok, Status, _, Body} = send_http("/whoami", [], get, []), 
+	{ok, RS, _, RB} = send(get, "/account/whoami"),
 	[
-	 ?_assertEqual("401", Status),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_MISSING_TOKEN">>, <<"error">> := <<"Missing access token">>}, Body)
+	 ?_assertEqual("401", RS),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_MISSING_TOKEN">>, <<"error">> := <<"Missing access token">>}, RB)
 	].
-t_whoami_invalid_token(_C) ->
-	{ok, Status, _, Body} = send_http("/whoami?access_token=a", [], get, []), 
+t_whoami_invalid_qs(_C) ->
+	{ok, RS, _, RB} = send(get, "/account/whoami?q=a"),
 	[
-	 ?_assertEqual("401", Status),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Invalid macaroon passed">>}, Body)
+	 ?_assertEqual("401", RS),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token">>}, RB)
 	].
+
+t_whoami_malformed_header(_C) ->
+	H = [{"Authorization", "notvalid"}],
+	{ok, RS, _, RB} = send(get, "/account/whoami", #{}, H),
+	[
+	 ?_assertEqual("401", RS),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_MISSING_TOKEN">>, <<"error">> := <<"Invalid Authorization header.">>}, RB)
+	].
+
+t_whoami_invalid_header(_C) ->
+	H = [{"Authorization", "Bearer notvalid"}],
+	{ok, RS, _, RB} = send(get, "/account/whoami", #{}, H),
+	[
+	 ?_assertEqual("401", RS),
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Invalid token passed.">>}, RB)
+	].
+
 %%% ------------------------
 %%% Internal Helper Functions
 %%% -------------------------
@@ -289,6 +306,7 @@ send_put(Url, Args) -> send_http(Url, Args, put, []).
 send_http(Url, Args, Method) ->
 	send_http(Url, Args, Method, []).
 
+% Deprecated in favour of send/2,3,4
 send_http(Url, Args, Method, Body0) ->
 		Body = jiffy:encode(Body0),
 		case ibrowse:send_req(baseurl() ++ io_lib:format(Url, Args), [], Method, Body) of
@@ -301,6 +319,37 @@ send_http(Url, Args, Method, Body0) ->
 		end.
 
 
+send(M, P) ->
+	send(M,P,#{},[]).
+
+send(M, P, B) ->
+	send(M, P, B, []).
+
+send(Method, Path, Body, Header) ->
+	H = [{accept, "application/json"}|Header],
+	B = jiffy:encode(Body),
+	case ibrowse:send_req(baseurl() ++ Path, H, Method, B) of
+			{ok, S, Rh, []} ->
+					{ok, S, Rh, []};
+			{ok, S, Rh, Rb} ->
+					{ok, S, Rh, jiffy:decode(Rb, [return_maps])};
+			Other ->
+					Other
+	end.
+
 baseurl() ->
 	"http://127.0.0.1:8080".
 
+insert_user(C, neo) ->
+	db:insert_user(C, "@neo:localhost", "thematrix"),
+	ReqB = #{
+	  <<"type">> => <<"m.login.password">>,
+	  <<"identifier">> => #{
+		  <<"type">> => <<"m.id.user">>,
+		  <<"user">> => <<"neo">>
+		 },
+	  <<"password">> => <<"thematrix">>,
+	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
+	 },
+	{ok, "200", _, #{<<"access_token">> := Token}} = send(post, "/login", ReqB),
+	 Token.

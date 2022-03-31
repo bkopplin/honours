@@ -1,5 +1,6 @@
 -module(api_tests).
 
+-export([insert_user/2, send/2, send/3, send/4]).
 -include_lib("epgsql/include/epgsql.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
@@ -19,7 +20,12 @@ setup_all() ->
 	os:putenv("PG_DATABASE", "eneo-test"),
 	os:putenv("PG_USER", "bjarne"),
 	os:putenv("PG_PASSWORD", "password"),
-	application:ensure_all_started(eneo),
+	case os:getenv("ENEO_AUTOSTART") of
+		"true" ->
+			application:ensure_all_started(eneo);
+		false ->
+			ok
+	end,
 	ibrowse:start(),
 	ok.
 
@@ -252,14 +258,14 @@ t_successful_supported_login(_C) ->
 %%% --------------
 
 t_whoami_success_qs(C) ->
-	Token = insert_user(C,neo),
-	{ok, RS, _, RB} = send(get, "/whoami?access_token=" ++ Token), 
+	Token = get_token(C,"@neo:localhost"),
+	{ok, RS, _, RB} = send(get, "/account/whoami?access_token=" ++ Token), 
 	[
 	 ?_assertEqual("200", RS),
 	 ?_assertMatch(#{<<"user_id">> := <<"@neo:localhost">>, <<"is_guest">> := false}, RB)
 	].
 t_whoami_success_header(C) ->
-	Token = insert_user(C,neo),
+	Token = get_token(C,"@neo:localhost"),
 	H = [{"Authorization", "Bearer " ++ Token}],
 	{ok, RS, _, RB} = send(get, "/account/whoami", #{}, H),
 	[
@@ -270,13 +276,13 @@ t_whoami_missing_token(_C) ->
 	{ok, RS, _, RB} = send(get, "/account/whoami"),
 	[
 	 ?_assertEqual("401", RS),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_MISSING_TOKEN">>, <<"error">> := <<"Missing access token">>}, RB)
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token.">>}, RB)
 	].
 t_whoami_invalid_qs(_C) ->
 	{ok, RS, _, RB} = send(get, "/account/whoami?q=a"),
 	[
 	 ?_assertEqual("401", RS),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token">>}, RB)
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token.">>}, RB)
 	].
 
 t_whoami_malformed_header(_C) ->
@@ -340,16 +346,24 @@ send(Method, Path, Body, Header) ->
 baseurl() ->
 	"http://127.0.0.1:8080".
 
-insert_user(C, neo) ->
-	db:insert_user(C, "@neo:localhost", "thematrix"),
+get_token(C, UserId) ->
+	AccessToken = eneo_lib:gen_access_token(),
+	DeviceId = eneo_lib:gen_device_id(),
+	epgsql:equery(C, "INSERT INTO Sessions (user_id, token, device_id) VALUES ($1,$2,$3);",
+					   [UserId, AccessToken, DeviceId]),
+	AccessToken.
+
+insert_user(C, UserId) ->
+	db:insert_user(C, UserId, "thematrix"),
 	ReqB = #{
 	  <<"type">> => <<"m.login.password">>,
 	  <<"identifier">> => #{
 		  <<"type">> => <<"m.id.user">>,
-		  <<"user">> => <<"neo">>
+		  <<"user">> => erlang:list_to_binary(UserId)
 		 },
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, "200", _, #{<<"access_token">> := Token}} = send(post, "/login", ReqB),
+	%{ok, "200", _, #{<<"access_token">> := Token}} = send(post, "/login", ReqB),
+	{ok, Token, _} = db:new_session(erlang:list_to_binary(UserId), eneo_lib:gen_device_id()),
 	 Token.

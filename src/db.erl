@@ -81,7 +81,6 @@ validate_token(Token) ->
 %%%
 
 init(DbConfig) ->
-	%receive X -> X after 5000 -> timeout end,
 	case epgsql:connect(DbConfig) of
 			{ok, C} ->
 				{ok, C};
@@ -113,7 +112,7 @@ handle_call({new_session, UserId, DevId}, _From, C) ->
 			   end,
 	Token = eneo_lib:gen_access_token(),
 	ok = insert_new_session(C, UserId, Token, DeviceId),
-	{reply, {ok, DeviceId, Token}, C};
+	{reply, {ok, Token, DeviceId}, C};
 
 handle_call({validate_token, Token}, _From, C) ->
 	case epgsql:equery(C, "SELECT user_id FROM Sessions WHERE token=$1;",

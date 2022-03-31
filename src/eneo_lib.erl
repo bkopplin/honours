@@ -24,7 +24,7 @@ authenticate_token(Req) ->
 				{ok, UserId} ->
 					{ok, UserId};
 				{error, invalid_token} ->
-					{error, 401, m_invalid_token, <<"Invalid token specified">>}
+					{error, 401, m_unknown_token, <<"Invalid token passed.">>}
 			end
 	end.
 
@@ -35,15 +35,15 @@ parse_token(Req) ->
 		undefined ->
 			case cowboy_req:match_qs([{access_token, nonempty, undefined}], Req) of
 				#{access_token := undefined} -> 
-					{error, 401, m_missing_token, <<"Missing access token">>};
+					{error, 401, m_unknown_token, <<"Missing access token.">>};
 				#{access_token := Tk1} ->
 					{ok, Tk1}
 			end;
 		{bearer, <<_:0/binary>>} ->
-			{error, 401, m_missing_token, <<"Missing access token">>};
+			{error, 401, m_missing_token, <<"Missing access token.">>};
 		{bearer, Tk2} ->
 			{ok, Tk2}
 	catch
 		exit:{request_error, _,_}:_ ->
-			{error, 401, m_invalid_header, <<"Invalid Authorization header">>} %TODO check status code
+			{error, 401, m_missing_token, <<"Invalid Authorization header.">>} %TODO check status code
 	end.

@@ -347,6 +347,7 @@ baseurl() ->
 	"http://127.0.0.1:8080".
 
 get_token(C, UserId) ->
+	db:insert_user(C, UserId, "password", false),
 	AccessToken = eneo_lib:gen_access_token(),
 	DeviceId = eneo_lib:gen_device_id(),
 	epgsql:equery(C, "INSERT INTO Sessions (user_id, token, device_id) VALUES ($1,$2,$3);",

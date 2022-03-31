@@ -33,7 +33,6 @@ content_types_provided(Req, State) ->
 	 ], Req, State}.
 
 content_types_accepted(Req, State) ->
-	io:format("content_types_accepted: ~p~n", [Req]),
 	{[
 	  {{<<"application">>, <<"json">>, '*'}, to_json}
 	 ], Req, State}.
@@ -93,24 +92,31 @@ to_json(Req, State) ->
 					Req2 = cowboy_req:set_resp_body(jiffy:encode(AuthObj), Req1),
 					{true, Req2, State};
 				false ->
-					eneo_http:error(403,  <<"M_FORBIDDEN">>, <<"Invalid password">>, Req1)
+					eneo_http:error(403,  <<"M_FORBIDDEN">>, <<"Invalid password">>, Req1),
+					{stop, Req, State}
 					% TODO: What is best practice: let it crash or return {true, Req, State}
 					% Idea: what if correct response does not lead to  exception error: no try clause matching 
 
 			end
 	catch
 		throw:{invalid_json, Req5}:_ ->
-			eneo_http:error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req5);
+			eneo_http:error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req5),
+			{stop, Req5, State};
 		throw:{m_unknown, Msg}:_ ->
-			eneo_http:error(400, <<"M_UNKNOWN">>, Msg, Req);
+			eneo_http:error(400, <<"M_UNKNOWN">>, Msg, Req),
+			{stop, Req, State};
 		error:{badkey, <<"identifier">>}:_ ->
-			eneo_http:error(400, <<"M_INVALID_PARAM">>, <<"Invalid login submission">>, Req);
+			eneo_http:error(400, <<"M_INVALID_PARAM">>, <<"Invalid login submission">>, Req),
+			{stop, Req, State};
 		error:{badkey, <<"type">>}:_ ->
-			eneo_http:error(400, <<"M_UNKNOWN">>, <<"Missing JSON keys.">>, Req);
+			eneo_http:error(400, <<"M_UNKNOWN">>, <<"Missing JSON keys.">>, Req),
+			{stop, Req, State};
 		error:{badkey, Key}:_ ->
-			eneo_http:error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req);
+			eneo_http:error(400, <<"M_UNKNOWN">>, <<"'", Key/binary, "' not in content">>, Req),
+			{stop, Req, State};
 		error:{badmap, _}:_ ->
-			eneo_http:error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req)
+			eneo_http:error(400, <<"M_NOT_JSON">>, <<"Content not JSON.">>, Req),
+			{stop, Req, State}
 	end.
 
 %%% --------------------------

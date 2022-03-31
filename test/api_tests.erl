@@ -160,7 +160,7 @@ t_login_successful(C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("200", Status),
 	 ?_assertEqual(<<"@neo:localhost">>, maps:get(<<"user_id">>, ResBody, "undefined")),
@@ -176,7 +176,7 @@ t_login_missing_type_key(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Missing JSON keys.">>}, ResBody)
@@ -191,7 +191,7 @@ t_login_unknown_login_type(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login type m.login.unknown">>}, ResBody)
@@ -207,7 +207,7 @@ t_login_unkown_identifier_type(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login identifier type">>}, ResBody)
@@ -222,7 +222,7 @@ t_login_user_not_provided(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">> }, ResBody)
@@ -238,7 +238,7 @@ t_login_invalid_password(_C) ->
 	  <<"password">> => <<"wrong">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("403", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Invalid password">>}, ResBody)
@@ -248,7 +248,7 @@ t_login_invalid_password(_C) ->
 %%% Supported Login Types
 %%% -----------------------
 t_successful_supported_login(_C) ->
-	{ok, Status, _, ReplyBody} = send_http("/login", [], get),
+	{ok, Status, _, ReplyBody} = send(get, "/login"),
 	[
 	 ?_assertEqual("200", Status),
 	 ?_assertEqual(#{<<"flows">> => [#{<<"type">> => <<"m.login.password">>}]}, ReplyBody)
@@ -332,7 +332,10 @@ send(M, P, B) ->
 	send(M, P, B, []).
 
 send(Method, Path, Body, Header) ->
-	H = [{accept, "application/json"}|Header],
+	%H = [{accept, "application/json"}|Header],
+	H = [
+		 {accept, "*/*"},
+		 {<<"content-type">>, "application/json"}|Header],
 	B = jiffy:encode(Body),
 	case ibrowse:send_req(baseurl() ++ Path, H, Method, B) of
 			{ok, S, Rh, []} ->

@@ -1,10 +1,11 @@
 -module(api_tests).
 
+-export([insert_user/2, send/2, send/3, send/4]).
 -include_lib("epgsql/include/epgsql.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 -define(ROOM1, "!t1:localhost").
--define(TOKEN1, "sj3s90324,c9s032sdf239d324").
+-define(TOKEN1, "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824").
 
 -define(setup(F), 
 		{setup,
@@ -19,7 +20,12 @@ setup_all() ->
 	os:putenv("PG_DATABASE", "eneo-test"),
 	os:putenv("PG_USER", "bjarne"),
 	os:putenv("PG_PASSWORD", "password"),
-	application:ensure_all_started(eneo),
+	case os:getenv("ENEO_AUTOSTART") of
+		"true" ->
+			application:ensure_all_started(eneo);
+		false ->
+			ok
+	end,
 	ibrowse:start(),
 	ok.
 
@@ -55,6 +61,7 @@ send_message_test_() ->
 		   
 		   % send messages
 		   ?setup(fun t_send_message_correct/1),
+		   ?setup(fun t_send_message_correct_user/1),
 		   ?setup(fun t_send_message_nonexisting_room/1),
 		   ?setup(fun t_send_message_missing_body/1),
 		   ?setup(fun t_send_message_content_field_missing/1),
@@ -95,14 +102,16 @@ eunit3(C) ->
 %%% ------------------
 
 t_send_message_correct(C) ->
+	Token = get_token(C, "@tom:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
 	db:insert_create_event(C, <<"@tom:localhost">>, ?ROOM1),
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
 	},
 	{ok, Status, _, Body} = 
-		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", 
-				  [?ROOM1, "1", ?TOKEN1], put, ReqBody),
+		send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token="
+			 ++ binary:bin_to_list(Token), ReqBody),
 	[
 	 ?_assertMatch(
 		{ok, _, [{<<"2">>}]}, 
@@ -112,7 +121,30 @@ t_send_message_correct(C) ->
 	 ?_assertMatch(true, maps:is_key(<<"event_id">>, Body))
 	].
 
-t_send_message_nonexisting_room(_C) ->
+t_send_message_correct_user(C) ->
+	UserId = <<"@neo:localhost">>,
+	db:insert_create_event(C, UserId, ?ROOM1),
+	Token = get_token(C, binary:bin_to_list(UserId)),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
+	ReqHeader = [{"Authorization", "Bearer " ++ binary:bin_to_list(Token)}],	
+	ReqBody =  #{
+       <<"body">> => <<"hello world">>,
+       <<"msgtype">> => <<"m.text">>
+	},
+	{ok, RS, _, RB} = send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1",
+						   ReqBody, ReqHeader),
+	[
+	 ?_assertEqual("200", RS),
+	 ?_assertMatch({ok, _, [{UserId}]},
+				   epgsql:equery(C, "SELECT sender FROM Events WHERE sender=$1 AND type='m.room.message';",
+								 [binary:bin_to_list(UserId)])
+				  )
+	].
+
+
+t_send_message_nonexisting_room(C) ->
+	Token = get_token(C, "@neo:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
@@ -120,23 +152,30 @@ t_send_message_nonexisting_room(_C) ->
 	{"send a message to a nonexisting room", 
 	 ?_assertMatch(
 	    {ok, "403", _, #{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Unknown room">> }},
-		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [<<"!invalid:room">>, "1", ?TOKEN1], put, ReqBody)
+		send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token=" 
+			 ++ binary:bin_to_list(Token), ReqBody)
 	  )}.
 
-t_send_message_missing_body(_C) ->
-	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, []),
+t_send_message_missing_body(C) ->
+	Token = get_token(C, "@neo:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
+	{ok, Status, _, Body} = send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token=" 
+			 ++ binary:bin_to_list(Token), []),
 	[
 	 ?_assertMatch("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_NOT_JSON">>, <<"error">> := <<"Content not JSON.">>}, Body)
 	].
 
-t_send_message_content_field_missing(_C) ->
+t_send_message_content_field_missing(C) ->
+	Token = get_token(C, "@neo:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
 	ReqBody =  #{
        <<"body">> => <<"bar">>
 	},
 	?_assertMatch(
 		{ok, "400", _, #{<<"errcode">> := <<"M_UNKNOWN">>}},
-		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, ReqBody)).
+		send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token=" 
+			 ++ binary:bin_to_list(Token), ReqBody)).
 
 %%% ------------
 %%% Log in
@@ -154,7 +193,7 @@ t_login_successful(C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("200", Status),
 	 ?_assertEqual(<<"@neo:localhost">>, maps:get(<<"user_id">>, ResBody, "undefined")),
@@ -170,7 +209,7 @@ t_login_missing_type_key(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Missing JSON keys.">>}, ResBody)
@@ -185,7 +224,7 @@ t_login_unknown_login_type(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login type m.login.unknown">>}, ResBody)
@@ -201,7 +240,7 @@ t_login_unkown_identifier_type(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">>, <<"error">> := <<"Unknown login identifier type">>}, ResBody)
@@ -216,7 +255,7 @@ t_login_user_not_provided(_C) ->
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN">> }, ResBody)
@@ -232,7 +271,7 @@ t_login_invalid_password(_C) ->
 	  <<"password">> => <<"wrong">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, Status, _, ResBody} = send_http("/login", [], post, ReqBody),
+	{ok, Status, _, ResBody} = send(post, "/login", ReqBody),
 	[
 	 ?_assertEqual("403", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Invalid password">>}, ResBody)
@@ -242,7 +281,7 @@ t_login_invalid_password(_C) ->
 %%% Supported Login Types
 %%% -----------------------
 t_successful_supported_login(_C) ->
-	{ok, Status, _, ReplyBody} = send_http("/login", [], get),
+	{ok, Status, _, ReplyBody} = send(get, "/login"),
 	[
 	 ?_assertEqual("200", Status),
 	 ?_assertEqual(#{<<"flows">> => [#{<<"type">> => <<"m.login.password">>}]}, ReplyBody)
@@ -252,14 +291,14 @@ t_successful_supported_login(_C) ->
 %%% --------------
 
 t_whoami_success_qs(C) ->
-	Token = insert_user(C,neo),
-	{ok, RS, _, RB} = send(get, "/whoami?access_token=" ++ Token), 
+	Token = get_token(C,"@neo:localhost"),
+	{ok, RS, _, RB} = send(get, "/account/whoami?access_token=" ++ Token), 
 	[
 	 ?_assertEqual("200", RS),
 	 ?_assertMatch(#{<<"user_id">> := <<"@neo:localhost">>, <<"is_guest">> := false}, RB)
 	].
 t_whoami_success_header(C) ->
-	Token = insert_user(C,neo),
+	Token = get_token(C,"@neo:localhost"),
 	H = [{"Authorization", "Bearer " ++ Token}],
 	{ok, RS, _, RB} = send(get, "/account/whoami", #{}, H),
 	[
@@ -270,13 +309,13 @@ t_whoami_missing_token(_C) ->
 	{ok, RS, _, RB} = send(get, "/account/whoami"),
 	[
 	 ?_assertEqual("401", RS),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_MISSING_TOKEN">>, <<"error">> := <<"Missing access token">>}, RB)
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token.">>}, RB)
 	].
 t_whoami_invalid_qs(_C) ->
 	{ok, RS, _, RB} = send(get, "/account/whoami?q=a"),
 	[
 	 ?_assertEqual("401", RS),
-	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token">>}, RB)
+	 ?_assertMatch(#{<<"errcode">> := <<"M_UNKNOWN_TOKEN">>, <<"error">> := <<"Missing access token.">>}, RB)
 	].
 
 t_whoami_malformed_header(_C) ->
@@ -326,7 +365,10 @@ send(M, P, B) ->
 	send(M, P, B, []).
 
 send(Method, Path, Body, Header) ->
-	H = [{accept, "application/json"}|Header],
+	%H = [{accept, "application/json"}|Header],
+	H = [
+		 {accept, "*/*"},
+		 {<<"content-type">>, "application/json"}|Header],
 	B = jiffy:encode(Body),
 	case ibrowse:send_req(baseurl() ++ Path, H, Method, B) of
 			{ok, S, Rh, []} ->
@@ -340,16 +382,26 @@ send(Method, Path, Body, Header) ->
 baseurl() ->
 	"http://127.0.0.1:8080".
 
-insert_user(C, neo) ->
-	db:insert_user(C, "@neo:localhost", "thematrix"),
+-spec get_token(epgsql:connection(), string() ) -> binary().
+get_token(C, UserId) ->
+	db:insert_user(C, UserId, "password", false),
+	AccessToken = eneo_lib:gen_access_token(),
+	DeviceId = eneo_lib:gen_device_id(),
+	epgsql:equery(C, "INSERT INTO Sessions (user_id, token, device_id) VALUES ($1,$2,$3);",
+					   [UserId, AccessToken, DeviceId]),
+	AccessToken.
+
+insert_user(C, UserId) ->
+	db:insert_user(C, UserId, "thematrix"),
 	ReqB = #{
 	  <<"type">> => <<"m.login.password">>,
 	  <<"identifier">> => #{
 		  <<"type">> => <<"m.id.user">>,
-		  <<"user">> => <<"neo">>
+		  <<"user">> => erlang:list_to_binary(UserId)
 		 },
 	  <<"password">> => <<"thematrix">>,
 	  <<"initial_device_display_name">> => <<"Nebuchadnezzar">>
 	 },
-	{ok, "200", _, #{<<"access_token">> := Token}} = send(post, "/login", ReqB),
+	%{ok, "200", _, #{<<"access_token">> := Token}} = send(post, "/login", ReqB),
+	{ok, Token, _} = db:new_session(erlang:list_to_binary(UserId), eneo_lib:gen_device_id()),
 	 Token.

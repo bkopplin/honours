@@ -28,6 +28,8 @@ content_types_provided(Req, State) ->
 	  {{<<"application">>, <<"json">>, '*'}, to_json}
 	 ], Req, State}.
 
-to_json(Req, State) ->
-	Res = #{user_id => maps:get(user_id, State)},
+to_json(Req, #{user_id := Uid} = State) ->
+	{ok, IsGuest} = db:is_guest(Uid),
+	Res = #{user_id => Uid,
+		   is_guest => IsGuest},
 	{jiffy:encode(Res), Req, State}.

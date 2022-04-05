@@ -7,7 +7,7 @@
 
 -export([start_link/1, stop/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
--export([get_event/2, get_messages/2, send_message/4, get_password/1, new_session/2, validate_token/1]).
+-export([get_event/2, get_messages/2, send_message/4, get_password/1, new_session/2, validate_token/1, is_guest/1]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -76,12 +76,15 @@ new_session(UserId, DeviceId) ->
 validate_token(Token) ->
 	gen_server:call(?MODULE, {validate_token, Token}).
 
+-spec is_guest(binary()) -> {ok, true | false} | {error, unknown_user}.
+is_guest(UserId) ->
+	gen_server:call(?MODULE, {is_guest, UserId}).
+
 %%% 
 %%% gen_server Module callback functions
 %%%
 
 init(DbConfig) ->
-	%receive X -> X after 5000 -> timeout end,
 	case epgsql:connect(DbConfig) of
 			{ok, C} ->
 				{ok, C};
@@ -113,7 +116,7 @@ handle_call({new_session, UserId, DevId}, _From, C) ->
 			   end,
 	Token = eneo_lib:gen_access_token(),
 	ok = insert_new_session(C, UserId, Token, DeviceId),
-	{reply, {ok, DeviceId, Token}, C};
+	{reply, {ok, Token, DeviceId}, C};
 
 handle_call({validate_token, Token}, _From, C) ->
 	case epgsql:equery(C, "SELECT user_id FROM Sessions WHERE token=$1;",
@@ -122,6 +125,15 @@ handle_call({validate_token, Token}, _From, C) ->
 			{reply, {ok, UserId}, C};
 		{ok, _, _} ->
 			{reply, {error, invalid_token}, C}
+	end;
+
+handle_call({is_guest, Uid}, _From, C) ->
+	case epgsql:equery(C, "SELECT is_guest FROM Users WHERE user_id=$1;",
+					   [Uid]) of
+		{ok, _, []} ->
+			{reply, {error, unknown_user}, C};
+		{ok, _, [{R}]} when R =:= true orelse R =:= false -> 	
+			{reply, {ok, R}, C}
 	end.
 
 handle_cast(_, C) ->

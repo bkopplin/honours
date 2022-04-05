@@ -42,20 +42,23 @@
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#get_event-2">get_event/2</a></td><td>Gets a single event.</td></tr>
 <tr><td valign="top"><a href="#get_messages-2">get_messages/2</a></td><td>Get a list of messages from a room.</td></tr>
+<tr><td valign="top"><a href="#get_password-1">get_password/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#new_session-2">new_session/2</a></td><td>Starts a new session for a given UserId.</td></tr>
 <tr><td valign="top"><a href="#send_message-4">send_message/4</a></td><td>sends a message.</td></tr>
 <tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#validate_token-1">validate_token/1</a></td><td>Checks if an authentication token is valid.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
 <h3 class="function"><a name="get_event-2">get_event/2</a></h3>
 <div class="spec">
-<p><tt>get_event(RoomId::<a href="#type-room_id">room_id()</a>, EventId::<a href="#type-event_id">event_id()</a>) -&gt; {ok, <a href="#type-event">event()</a>} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
+<p><tt>get_event(RoomId::<a href="#type-room_id">room_id()</a>, EventId::<a href="#type-event_id">event_id()</a>) -&gt; {ok, <a href="#type-event">event()</a>} | {error, not_found} | <a href="/home/bjarne/code/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
 <p> </p>
 </div><p>Gets a single event.
   EventId and RoomId refer to the event's identification and room.
@@ -64,11 +67,17 @@
 
 <h3 class="function"><a name="get_messages-2">get_messages/2</a></h3>
 <div class="spec">
-<p><tt>get_messages(RoomId::<a href="#type-room_id">room_id()</a>, Qs::<a href="#type-qs">qs()</a>) -&gt; {ok, <a href="#type-table">table()</a>} | {error, not_found} | <a href="http://www.erlang.org/edoc/doc/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
+<p><tt>get_messages(RoomId::<a href="#type-room_id">room_id()</a>, Qs::<a href="#type-qs">qs()</a>) -&gt; {ok, <a href="#type-table">table()</a>} | {error, not_found} | <a href="/home/bjarne/code/epgsql/doc/epgsql_sock.html#type-error">epgsql_sock:error()</a></tt><br></p>
 <p> </p>
 </div><p>Get a list of messages from a room.
   RoomId is the id of the room to get the messages from.
   Qs is the Query string</p>
+
+<h3 class="function"><a name="get_password-1">get_password/1</a></h3>
+<div class="spec">
+<p><tt>get_password(UserId) -&gt; any()</tt></p>
+<p> </p>
+</div>
 
 <h3 class="function"><a name="handle_call-3">handle_call/3</a></h3>
 <div class="spec">
@@ -87,6 +96,15 @@
 <p><tt>init(DbConfig) -&gt; any()</tt></p>
 <p> </p>
 </div>
+
+<h3 class="function"><a name="new_session-2">new_session/2</a></h3>
+<div class="spec">
+<p><tt>new_session(UserId::binary(), DeviceId::binary() | undefined) -&gt; {ok, AccessToken::binary(), DeviceId::binary()}</tt><br></p>
+<p> </p>
+</div><p>Starts a new session for a given UserId. If DeviceId is undefined, a
+  new device identifier will be generated. After calling this function, all
+  previously used access tokens assigned to the given device id will be
+  invalidated.</p>
 
 <h3 class="function"><a name="send_message-4">send_message/4</a></h3>
 <div class="spec">
@@ -111,6 +129,13 @@
 <p><tt>terminate(Reason, C) -&gt; any()</tt></p>
 <p> </p>
 </div>
+
+<h3 class="function"><a name="validate_token-1">validate_token/1</a></h3>
+<div class="spec">
+<p><tt>validate_token(Token::binary()) -&gt; {ok, binary()} | {error, invalid_token}</tt><br></p>
+<p> </p>
+</div><p>Checks if an authentication token is valid. Returns the username
+  associated with the access token or an error, as the case may be.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>

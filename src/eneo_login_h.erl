@@ -38,7 +38,6 @@ content_types_accepted(Req, State) ->
 	 ], Req, State}.
 
 supportedLogins(Req, State) ->
-	io:format("supported logins~n"),
 	SupportedLogins = #{<<"flows">> => [
 						 #{<<"type">> => <<"m.login.password">>}
 						]

@@ -5,7 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(ROOM1, "!t1:localhost").
--define(TOKEN1, "sj3s90324,c9s032sdf239d324").
+-define(TOKEN1, "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824").
 
 -define(setup(F), 
 		{setup,
@@ -61,6 +61,7 @@ send_message_test_() ->
 		   
 		   % send messages
 		   ?setup(fun t_send_message_correct/1),
+		   ?setup(fun t_send_message_correct_user/1),
 		   ?setup(fun t_send_message_nonexisting_room/1),
 		   ?setup(fun t_send_message_missing_body/1),
 		   ?setup(fun t_send_message_content_field_missing/1),
@@ -101,14 +102,16 @@ eunit3(C) ->
 %%% ------------------
 
 t_send_message_correct(C) ->
+	Token = get_token(C, "@tom:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
 	db:insert_create_event(C, <<"@tom:localhost">>, ?ROOM1),
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
 	},
 	{ok, Status, _, Body} = 
-		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", 
-				  [?ROOM1, "1", ?TOKEN1], put, ReqBody),
+		send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token="
+			 ++ binary:bin_to_list(Token), ReqBody),
 	[
 	 ?_assertMatch(
 		{ok, _, [{<<"2">>}]}, 
@@ -118,7 +121,30 @@ t_send_message_correct(C) ->
 	 ?_assertMatch(true, maps:is_key(<<"event_id">>, Body))
 	].
 
-t_send_message_nonexisting_room(_C) ->
+t_send_message_correct_user(C) ->
+	UserId = <<"@neo:localhost">>,
+	db:insert_create_event(C, UserId, ?ROOM1),
+	Token = get_token(C, binary:bin_to_list(UserId)),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
+	ReqHeader = [{"Authorization", "Bearer " ++ binary:bin_to_list(Token)}],	
+	ReqBody =  #{
+       <<"body">> => <<"hello world">>,
+       <<"msgtype">> => <<"m.text">>
+	},
+	{ok, RS, _, RB} = send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1",
+						   ReqBody, ReqHeader),
+	[
+	 ?_assertEqual("200", RS),
+	 ?_assertMatch({ok, _, [{UserId}]},
+				   epgsql:equery(C, "SELECT sender FROM Events WHERE sender=$1 AND type='m.room.message';",
+								 [binary:bin_to_list(UserId)])
+				  )
+	].
+
+
+t_send_message_nonexisting_room(C) ->
+	Token = get_token(C, "@neo:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
 	ReqBody =  #{
        <<"body">> => <<"bar">>,
        <<"msgtype">> => <<"m.text">>
@@ -126,23 +152,30 @@ t_send_message_nonexisting_room(_C) ->
 	{"send a message to a nonexisting room", 
 	 ?_assertMatch(
 	    {ok, "403", _, #{<<"errcode">> := <<"M_FORBIDDEN">>, <<"error">> := <<"Unknown room">> }},
-		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [<<"!invalid:room">>, "1", ?TOKEN1], put, ReqBody)
+		send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token=" 
+			 ++ binary:bin_to_list(Token), ReqBody)
 	  )}.
 
-t_send_message_missing_body(_C) ->
-	{ok, Status, _, Body} = send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, []),
+t_send_message_missing_body(C) ->
+	Token = get_token(C, "@neo:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
+	{ok, Status, _, Body} = send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token=" 
+			 ++ binary:bin_to_list(Token), []),
 	[
 	 ?_assertMatch("400", Status),
 	 ?_assertMatch(#{<<"errcode">> := <<"M_NOT_JSON">>, <<"error">> := <<"Content not JSON.">>}, Body)
 	].
 
-t_send_message_content_field_missing(_C) ->
+t_send_message_content_field_missing(C) ->
+	Token = get_token(C, "@neo:localhost"),
+	?debugFmt("--- ~s: ~s", [?FUNCTION_NAME, Token]),
 	ReqBody =  #{
        <<"body">> => <<"bar">>
 	},
 	?_assertMatch(
 		{ok, "400", _, #{<<"errcode">> := <<"M_UNKNOWN">>}},
-		send_http("/rooms/~s/send/m.room.message/~saccess_token=~s", [?ROOM1, "1", ?TOKEN1], put, ReqBody)).
+		send(put, "/rooms/" ++ ?ROOM1 ++ "/send/m.room.message/1?access_token=" 
+			 ++ binary:bin_to_list(Token), ReqBody)).
 
 %%% ------------
 %%% Log in
@@ -349,6 +382,7 @@ send(Method, Path, Body, Header) ->
 baseurl() ->
 	"http://127.0.0.1:8080".
 
+-spec get_token(epgsql:connection(), string() ) -> binary().
 get_token(C, UserId) ->
 	db:insert_user(C, UserId, "password", false),
 	AccessToken = eneo_lib:gen_access_token(),

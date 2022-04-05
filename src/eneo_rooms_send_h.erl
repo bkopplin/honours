@@ -6,6 +6,7 @@
 -export([allowed_methods/2]).
 -export([is_authorized/2]).
 -export([content_types_accepted/2]).
+-export([content_types_provided/2]).
 -export([to_json/2]).
 
 -define(HOSTNAME, <<"localhost">>).
@@ -14,7 +15,7 @@ init(Req, Opts) ->
 	{cowboy_rest, Req, Opts}.
 
 allowed_methods(Req, State) ->
-    {[<<"POST">>], Req, #{}}.
+    {[<<"PUT">>], Req, #{}}.
 
 is_authorized(Req, State) ->
 	case eneo_lib:authenticate_token(Req) of
@@ -25,17 +26,21 @@ is_authorized(Req, State) ->
 			{stop, Req1, State}
 	end.	
 
-content_types_accepted(Req, State) ->
-	io:format("content_types_accepted: ~p~n", [Req]),
+content_types_provided(Req, State) ->
 	{[
 	  {{<<"application">>, <<"json">>, '*'}, to_json}
 	 ], Req, State}.
 
-to_json(Req0, State) ->
+content_types_accepted(Req, State) ->
+	{[
+	  {{<<"application">>, <<"json">>, '*'}, to_json}
+	 ], Req, State}.
+
+to_json(Req0, #{user_id := UserId} = State) ->
 	try
 		RoomId = cowboy_req:binding(roomId, Req0),
 		TxnId = cowboy_req:binding(txnId, Req0),
-		Sender = <<"@clyde:localhost">>,
+		Sender = UserId,
 		{ok, Body, Req} = eneo_http:parse_body(Req0),
 		Message = maps:get(<<"body">>, Body),
 		MsgType = maps:get(<<"msgtype">>, Body),
@@ -45,7 +50,8 @@ to_json(Req0, State) ->
 			case db:send_message(Message, RoomId, Sender, TxnId) of
 				{ok, EventId} -> 
 					ResBody = jiffy:encode(#{<<"event_id">> => EventId}),
-					{ResBody, Req, State};
+					Req1 = cowboy_req:set_resp_body(ResBody, Req),
+					{true, Req1, State};
 					%eneo_http:reply(200, #{<<"event_id">> => EventId}, Req);
 				{error, unknown_room} -> 
 					eneo_http:error(403, <<"M_FORBIDDEN">>, <<"Unknown room">>, Req)

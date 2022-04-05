@@ -9,7 +9,7 @@ gen_device_id() ->
 	binary:encode_hex(crypto:strong_rand_bytes(20)).
 
 gen_state_id() ->
-	Id = base64:encode(crypto:strong_rand_bytes(20)),
+	Id = binary:encode_hex(crypto:strong_rand_bytes(20)),
 	<<"$",Id/binary >>.
 
 %% @doc Checks if a given user token is valid and returns the corresponding user_id or error

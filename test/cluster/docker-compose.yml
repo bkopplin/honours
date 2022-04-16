@@ -12,6 +12,8 @@ services:
                         PG_USER: eneo
                         PG_DATABASE: eneo
                         PG_HOST: eneo_db
+                depends_on:
+                        - db
         db:
                 image: postgres
                 restart: always

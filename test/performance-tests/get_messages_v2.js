@@ -5,7 +5,7 @@ const host = 'http://127.23.0.1:8081';
 
 export const options = {
 		stages: [
-				{duration: '60s', target: 20},
+				{duration: '1s', target: 20},
 		],
 		thresholds: {
 			http_req_failed: ['rate<0.01'],

@@ -1,6 +1,0 @@
-Sat 16 Apr 11:33:11 BST 2022
-     checks.........................: 100.00% ✓ 3908        ✗ 0   
-     http_req_waiting...............: avg=4.39ms  min=987.46µs med=3.51ms  max=19.92ms p(90)=8.84ms  p(95)=10.78ms 
-Sat 16 Apr 11:33:59 BST 2022
-     checks.........................: 100.00% ✓ 3824        ✗ 0   
-     http_req_waiting...............: avg=4.44ms  min=1ms     med=3.58ms  max=20.73ms  p(90)=8.32ms  p(95)=10.61ms 

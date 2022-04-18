@@ -158,10 +158,10 @@ select_messages(C, RoomId, Limit) ->
 -spec select_event(C :: epgsql:connection(), RoomId :: room_id(), EventId :: event_id() ) -> table() | {error, any()}.
 select_event(C, RoomId, EventId) ->
 	case epgsql:equery(C, "SELECT * FROM Events WHERE room_id = $1 AND event_id = $2;", [RoomId, EventId]) of
-		{ok, Cols, Rows} -> 
-			{ok, table_to_list(Cols, Rows)};
 		{ok, _, []} ->
 			{reply, {error, not_found}, C};
+		{ok, Cols, Rows} -> 
+			{ok, table_to_list(Cols, Rows)};
 		{error, Reason} ->
 			{error, Reason}
 	end.

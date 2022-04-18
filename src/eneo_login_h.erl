@@ -10,12 +10,13 @@
 -export([to_json/2]).
 -export([supportedLogins/2]).
 
+
 -define(HOSTNAME, <<"localhost">>).
 
 init(Req, Opts) ->
 	{cowboy_rest, Req, Opts}.
 
-allowed_methods(Req, State) ->
+allowed_methods(Req, _State) ->
     {[<<"GET">>, <<"POST">>], Req, #{}}.
 
 is_authorized(Req, State) ->

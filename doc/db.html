@@ -46,6 +46,7 @@
 <tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_guest-1">is_guest/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#new_session-2">new_session/2</a></td><td>Starts a new session for a given UserId.</td></tr>
 <tr><td valign="top"><a href="#send_message-4">send_message/4</a></td><td>sends a message.</td></tr>
 <tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
@@ -94,6 +95,12 @@
 <h3 class="function"><a name="init-1">init/1</a></h3>
 <div class="spec">
 <p><tt>init(DbConfig) -&gt; any()</tt></p>
+<p> </p>
+</div>
+
+<h3 class="function"><a name="is_guest-1">is_guest/1</a></h3>
+<div class="spec">
+<p><tt>is_guest(UserId::binary()) -&gt; {ok, true | false} | {error, unknown_user}</tt><br></p>
 <p> </p>
 </div>
 

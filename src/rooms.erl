@@ -63,7 +63,7 @@ handle_request(<<"PUT">>, send_message, Req0) ->
 		Sender = <<"@clyde:localhost">>,
 		{ok, Body, Req} = eneo_http:parse_body(Req0),
 		Message = maps:get(<<"body">>, Body),
-		MsgType = maps:get(<<"msgtype">>, Body),
+		_MsgType = maps:get(<<"msgtype">>, Body),
 		ok
 	of
 		ok ->

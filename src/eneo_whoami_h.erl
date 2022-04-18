@@ -11,7 +11,7 @@
 init(Req, Opts) ->
 	{cowboy_rest, Req, Opts}.
 
-allowed_methods(Req, State) ->
+allowed_methods(Req, _State) ->
     {[<<"GET">>], Req, #{}}.
 
 is_authorized(Req, State) ->

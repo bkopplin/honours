@@ -14,7 +14,7 @@
 init(Req, Opts) ->
 	{cowboy_rest, Req, Opts}.
 
-allowed_methods(Req, State) ->
+allowed_methods(Req, _State) ->
     {[<<"PUT">>], Req, #{}}.
 
 is_authorized(Req, State) ->
@@ -43,7 +43,7 @@ to_json(Req0, #{user_id := UserId} = State) ->
 		Sender = UserId,
 		{ok, Body, Req} = eneo_http:parse_body(Req0),
 		Message = maps:get(<<"body">>, Body),
-		MsgType = maps:get(<<"msgtype">>, Body),
+		_MsgType = maps:get(<<"msgtype">>, Body),
 		ok
 	of
 		ok ->
@@ -52,7 +52,6 @@ to_json(Req0, #{user_id := UserId} = State) ->
 					ResBody = jiffy:encode(#{<<"event_id">> => EventId}),
 					Req1 = cowboy_req:set_resp_body(ResBody, Req),
 					{true, Req1, State};
-					%eneo_http:reply(200, #{<<"event_id">> => EventId}, Req);
 				{error, unknown_room} -> 
 					eneo_http:error(403, <<"M_FORBIDDEN">>, <<"Unknown room">>, Req)
 			end 

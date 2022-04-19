@@ -4,8 +4,8 @@ if [ $# -lt 1 ]; then
 fi
 if [ $1 = "prod" ]; then
 	rebar3 as prod release 
-	docker build -t bkopplin/eneo:latest .
-	docker push bkopplin/eneo:latest
+	docker build -t bkopplin/eneo:manifest-$(dpkg --print-architecture) .
+	docker push bkopplin/eneo:manifest-$(dpkg --print-architecture)
 fi
 
 

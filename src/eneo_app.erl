@@ -32,7 +32,8 @@ start(_StartType, _StartArgs) ->
 						{send_timeout, 30000},
 						{keepalive, true}
 					   ], #{
-					       env => #{dispatch => Dispatch}
+					       env => #{dispatch => Dispatch},
+						   middlewares => [cowboy_router, logger_mw, cowboy_handler]
 					      }),
     eneo_sup:start_link().
 

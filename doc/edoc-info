@@ -1,4 +1,4 @@
 %% encoding: UTF-8
 {application,eneo}.
 {modules,[db,eneo_app,eneo_auth,eneo_http,eneo_lib,eneo_login_h,
-          eneo_rooms_send_h,eneo_sup,eneo_whoami_h,rooms]}.
+          eneo_rooms_send_h,eneo_sup,eneo_whoami_h,logger_mw,rooms]}.

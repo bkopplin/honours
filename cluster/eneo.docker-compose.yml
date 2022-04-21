@@ -12,9 +12,9 @@ services:
                         - db
                 deploy:
                         mode: replicated
-                        replicas: 3
+                        replicas: 2
                         #placement:
-                                #constraints: [node.hostname==piblue]
+                                #constraints: [node.hostname!=piblue]
                 ports:
                         - "90:8080"
                 command: ["foreground", ">>", "/tmp/eneo.log"]

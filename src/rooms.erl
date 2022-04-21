@@ -50,7 +50,6 @@ handle_request(<<"GET">>, event, Req) ->
 handle_request(<<"GET">>, messages, Req) ->
 	RoomId = cowboy_req:binding(roomId, Req),
 	Qs = cowboy_req:match_qs([{limit, int, 10}, {dir, [], <<"b">>}, {from, [], start}], Req),
-	io:format("QS: ~p~n", [Qs]),
 	case db:get_messages(RoomId, Qs) of
 		{ok, Events} -> eneo_http:reply(200, Events, Req);
 		{error, _} -> eneo_http:reply(404, #{<<"error">> => <<"error while querying the database, no events returned">>}, Req)
